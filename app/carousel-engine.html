@@ -347,6 +347,36 @@ details[open]>summary::before{content:"▾"}
 .logrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
 @media (max-width:560px){.aued .grid2,.btnrow{grid-template-columns:1fr}}
 
+/* idea deck */
+.ideahead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ideastage{position:relative;max-width:420px;margin:0 auto;min-height:60px}
+.ideacard{position:relative;z-index:1;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px 18px 16px;display:flex;flex-direction:column;touch-action:none;user-select:none}
+.ideacard.peek{position:absolute;inset:0;z-index:0;transform:translateY(10px) scale(.97);opacity:.65;pointer-events:none}
+.ideacard .tag{align-self:flex-start;font:600 11px var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-2)}
+.ideacard[data-cat="github"] .tag{color:#3B4B99;background:color-mix(in srgb,#3B4B99 14%,var(--surface-2))}
+.ideacard[data-cat="news"] .tag{color:#96650E;background:color-mix(in srgb,#96650E 14%,var(--surface-2))}
+.ideacard[data-cat="buzz"] .tag{color:#7A3E75;background:color-mix(in srgb,#7A3E75 14%,var(--surface-2))}
+.ideacard h3{font:800 20px "Rubik",sans-serif;margin-top:10px;letter-spacing:-.01em}
+.ideacard .stat{font-size:12px;color:var(--ink-3);margin-top:2px}
+.ideacard .desc{font-size:13.5px;color:var(--ink-2);line-height:1.55;margin-top:10px}
+.ideacard .angle{margin-top:12px;padding:10px 12px;border-radius:var(--r-sm);background:var(--surface-2)}
+.ideacard .angle b{display:block;font:600 10.5px var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+.ideacard .angle span{font-size:13.5px;color:var(--ink);line-height:1.5}
+.ideacard .foot{margin-top:12px}
+.ideacard .foot a{font-size:12px;color:var(--ink-3);text-decoration:none}
+.ideacard .foot a:hover{color:var(--ink-2)}
+.ideastamp{position:absolute;top:18px;padding:4px 12px;border:2.5px solid;border-radius:8px;font:800 18px "Rubik",sans-serif;letter-spacing:.02em;text-transform:uppercase;opacity:0;pointer-events:none;z-index:2}
+.ideastamp.keep{left:18px;color:var(--ok);border-color:var(--ok);transform:rotate(-14deg)}
+.ideastamp.skip{right:18px;color:var(--danger);border-color:var(--danger);transform:rotate(14deg)}
+.ideactrls{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:18px}
+.ideactrls .btn.icon{width:52px;height:52px;font-size:20px}
+.ideaprog{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:76px}
+.ideaprog .n{font:600 12.5px var(--mono);color:var(--ink-2)}
+.ideabar{width:100%;height:4px;border-radius:2px;background:var(--line);overflow:hidden;display:flex}
+.ideabar span{height:100%}
+.ideaempty{max-width:420px;margin:0 auto;text-align:center;padding:36px 20px;border:1px dashed var(--line-strong);border-radius:var(--r);color:var(--ink-2)}
+.ideasaveitem{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+
 /* calendar */
 .calhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .calhead h2{min-width:170px}
@@ -434,6 +464,9 @@ details[open]>summary::before{content:"▾"}
     </div>
     <div class="sb-group"><div class="sb-label">Automate</div>
       <button class="nav-item tab" data-view="auto" id="tab-auto" title="Comment automations"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg><span class="txt">Comment automations</span></button>
+    </div>
+    <div class="sb-group"><div class="sb-label">Discover</div>
+      <button class="nav-item tab" data-view="ideas" id="tab-ideas" title="Idea Deck"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg><span class="txt">Idea Deck</span></button>
     </div>
   </nav>
   <div class="sb-foot">
@@ -627,6 +660,17 @@ details[open]>summary::before{content:"▾"}
   <div class="calwrap"><div class="cal" id="calGrid"></div></div>
   <p class="hint">Times are shown in <span id="calTz"></span>. Posts appear here when you post or schedule them from the app.</p>
 </section>
+
+<section id="view-ideas" class="view" hidden>
+  <div class="mhead ideahead"><h2>Idea Deck</h2><button class="btn ghost sm" id="ideaSavedBtn">Saved <span id="ideaSavedCount" class="mono">0</span></button></div>
+  <div class="ideastage" id="ideaStage"></div>
+  <div class="ideactrls" id="ideaCtrls" hidden>
+    <button class="btn icon" id="ideaSkipBtn" aria-label="Skip" title="Skip (←)">✕</button>
+    <div class="ideaprog"><span class="n mono" id="ideaProgN">0 / 0</span><div class="ideabar"><span id="ideaBarKeep" style="background:var(--ok);width:0%"></span><span id="ideaBarSkip" style="background:var(--danger);width:0%"></span></div></div>
+    <button class="btn icon" id="ideaKeepBtn" aria-label="Keep" title="Keep (→)">✓</button>
+  </div>
+  <p class="hint center">Drag the card, use the buttons, or the ←/→ arrow keys.</p>
+</section>
 </main>
 </div>
 </div>
@@ -698,6 +742,13 @@ details[open]>summary::before{content:"▾"}
     <div id="pickGrid" class="mgrid small pick"></div>
   </div>
 </div>
+
+<div id="ideaSaved" class="overlay" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="ideaSavedTitle" style="width:min(560px,100%)">
+    <div class="row between"><h3 id="ideaSavedTitle">Saved ideas</h3><button class="btn ghost sm" id="ideaSavedClose">Close</button></div>
+    <div id="ideaSavedList" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+</div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -724,11 +775,11 @@ const S = {
   sets: [], media: [], carousels: [], settings: { handle: "@antongoril" },
   cur: null, idx: 0, view: "studio",
   dirty: false, saving: false, again: false,
-  loaded: { sets: false, media: false, carousels: false },
+  loaded: { sets: false, media: false, carousels: false, ideas: false },
   mFilter: "all", mSearch: "", selecting: false, sel: new Set(),
   hit: null, hitC: null, drag: null, hover: false,
   improveCtl: null, prevCopy: null, noDb: false, editing: false, lastL: null,
-  posts: [], calMonth: null,
+  posts: [], calMonth: null, ideas: [],
 };
 const mediaById = new Map();
 const imgCache = new Map();
@@ -2727,6 +2778,97 @@ function autoRefresh() {
   due.forEach((p) => refreshPost(p.id, true));
 }
 
+/* ---------- idea deck ---------- */
+function ideaByStatus(s) { return S.ideas.filter((x) => x.status === s); }
+function renderIdeaProgress() {
+  const total = S.ideas.length, saved = ideaByStatus("saved").length, skipped = ideaByStatus("skipped").length;
+  $("#ideaProgN").textContent = `${saved + skipped} / ${total}`;
+  $("#ideaBarKeep").style.width = (total ? (saved / total) * 100 : 0) + "%";
+  $("#ideaBarSkip").style.width = (total ? (skipped / total) * 100 : 0) + "%";
+  $("#ideaSavedCount").textContent = saved;
+}
+function ideaCardFace(idea) {
+  return `<span class="tag">${esc(idea.catLabel || idea.cat || "")}</span>
+    <h3 dir="auto">${esc(idea.title)}</h3>
+    <div class="stat mono">${esc(idea.stat || "")}</div>
+    <div class="desc" dir="auto">${esc(idea.desc || "")}</div>
+    <div class="angle"><b>Content angle</b><span dir="auto">${esc(idea.angle || "")}</span></div>
+    <div class="foot"><a href="${esc(idea.url || "#")}" target="_blank" rel="noopener">Source ↗</a></div>
+    <div class="ideastamp keep">Keep</div><div class="ideastamp skip">Skip</div>`;
+}
+function renderIdeaDeck() {
+  const stage = $("#ideaStage"); if (!stage) return;
+  if (!S.loaded.ideas) { stage.innerHTML = `<p class="hint center">Loading ideas…</p>`; $("#ideaCtrls").hidden = true; return; }
+  if (!S.ideas.length) {
+    stage.innerHTML = `<div class="ideaempty"><b>No ideas yet.</b><br>Ask Claude to pull fresh ideas from GitHub Trending, AI news or elsewhere.</div>`;
+    $("#ideaCtrls").hidden = true; renderIdeaProgress(); return;
+  }
+  const pending = ideaByStatus("pending");
+  if (!pending.length) {
+    const skipped = ideaByStatus("skipped").length;
+    stage.innerHTML = `<div class="ideaempty"><b>That's the whole deck.</b><br>${skipped ? "Bring back the ones you skipped, or check what you saved." : "Everything you saw is in your saved list."}${skipped ? `<div style="margin-top:12px"><button class="btn sm" id="ideaRestoreBtn">Bring back skipped</button></div>` : ""}</div>`;
+    $("#ideaCtrls").hidden = true; renderIdeaProgress(); return;
+  }
+  $("#ideaCtrls").hidden = false;
+  const top2 = pending.slice(0, 2);
+  let html = "";
+  if (top2[1]) html += `<div class="ideacard peek" data-cat="${esc(top2[1].cat)}">${ideaCardFace(top2[1])}</div>`;
+  html += `<div class="ideacard" id="ideaFront" data-id="${esc(top2[0].id)}" data-cat="${esc(top2[0].cat)}">${ideaCardFace(top2[0])}</div>`;
+  stage.innerHTML = html;
+  wireIdeaDrag($("#ideaFront"), top2[0]);
+  renderIdeaProgress();
+}
+function ideaFrontId() { const p = ideaByStatus("pending"); return p.length ? p[0].id : null; }
+function commitIdea(id, status, dir) {
+  const el = $("#ideaFront");
+  if (el && el.dataset.id === id) {
+    el.style.transition = "transform .28s ease, opacity .28s ease";
+    el.style.transform = `translate(${dir * 480}px, ${dir * 40}px) rotate(${dir * 22}deg)`;
+    el.style.opacity = "0";
+  }
+  const idea = S.ideas.find((x) => x.id === id); if (idea) idea.status = status;
+  dbUpdate("ideas/" + id, { status, updatedAt: Date.now() });
+  setTimeout(renderIdeaDeck, dir ? 160 : 0);
+}
+function wireIdeaDrag(el, idea) {
+  if (!el) return;
+  let sx = 0, sy = 0, dx = 0, dragging = false;
+  const stampKeep = el.querySelector(".ideastamp.keep"), stampSkip = el.querySelector(".ideastamp.skip");
+  el.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("a")) return;
+    dragging = true; sx = e.clientX; sy = e.clientY;
+    el.setPointerCapture && e.pointerId != null && el.setPointerCapture(e.pointerId);
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    dx = e.clientX - sx; const dy = e.clientY - sy;
+    el.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx / 18}deg)`;
+    const t = Math.min(Math.abs(dx) / 110, 1);
+    if (dx > 0) { stampKeep.style.opacity = t; stampSkip.style.opacity = 0; } else { stampSkip.style.opacity = t; stampKeep.style.opacity = 0; }
+  });
+  const onUp = () => {
+    if (!dragging) return; dragging = false;
+    if (Math.abs(dx) > 90) commitIdea(idea.id, dx > 0 ? "saved" : "skipped", dx > 0 ? 1 : -1);
+    else { el.style.transition = "transform .2s ease"; el.style.transform = ""; stampKeep.style.opacity = 0; stampSkip.style.opacity = 0; setTimeout(() => { el.style.transition = ""; }, 200); }
+    dx = 0;
+  };
+  el.addEventListener("pointerup", onUp); el.addEventListener("pointercancel", onUp);
+}
+function renderIdeaSaved() {
+  const saved = ideaByStatus("saved");
+  $("#ideaSavedList").innerHTML = saved.length ? saved.map((idea) => `<div class="ideasaveitem"><span class="tag">${esc(idea.catLabel || idea.cat || "")}</span><b dir="auto">${esc(idea.title)}</b><span class="meta" dir="auto">${esc(idea.angle || "")}</span><div class="row between"><a class="meta" href="${esc(idea.url || "#")}" target="_blank" rel="noopener">Source ↗</a><button class="btn ghost sm" data-idea-unsave="${esc(idea.id)}">Remove</button></div></div>`).join("")
+    : `<p class="hint">Nothing saved yet. Swipe right on an idea to keep it here.</p>`;
+}
+function unsaveIdea(id) {
+  const idea = S.ideas.find((x) => x.id === id); if (idea) idea.status = "pending";
+  dbUpdate("ideas/" + id, { status: "pending" });
+  renderIdeaSaved(); renderIdeaDeck();
+}
+function restoreSkippedIdeas() {
+  ideaByStatus("skipped").forEach((x) => { x.status = "pending"; dbUpdate("ideas/" + x.id, { status: "pending" }); });
+  renderIdeaDeck();
+}
+
 /* ---------- accounts ---------- */
 function renderAccounts() {
   let h = "";
@@ -2760,12 +2902,12 @@ function renderUserChip() {
 }
 
 /* ---------- views ---------- */
-const CRUMBS = { studio: ["Create", "Carousel"], video: ["Create", "Video"], media: ["Create", "Media Bank"], carousels: ["Publish", "My Carousels"], calendar: ["Publish", "Calendar"], auto: ["Automate", "Comment automations"] };
+const CRUMBS = { studio: ["Create", "Carousel"], video: ["Create", "Video"], media: ["Create", "Media Bank"], carousels: ["Publish", "My Carousels"], calendar: ["Publish", "Calendar"], auto: ["Automate", "Comment automations"], ideas: ["Discover", "Idea Deck"] };
 function go(view) {
   S.view = view;
   const cr = CRUMBS[view] || ["", view]; $("#crumbRoot").textContent = cr[0]; $("#crumbCur").textContent = cr[1];
   setDrawer(false);
-  ["studio", "media", "video", "carousels", "auto", "calendar"].forEach((v) => { $("#view-" + v).hidden = v !== view; $("#tab-" + v).classList.toggle("on", v === view); });
+  ["studio", "media", "video", "carousels", "auto", "calendar", "ideas"].forEach((v) => { $("#view-" + v).hidden = v !== view; $("#tab-" + v).classList.toggle("on", v === view); });
   $("#exportBtn").hidden = view !== "studio";
   $("#postBtn").hidden = view !== "studio";
   $("#saveBtn").hidden = view !== "studio";
@@ -2775,6 +2917,7 @@ function go(view) {
   if (view === "video") enterVideo();
   if (view === "auto") { if (AUP.plat === "tiktok") enterTT(); else enterAuto(); }
   if (view === "studio") renderStudio();
+  if (view === "ideas") renderIdeaDeck();
 }
 
 /* ---------- live data ---------- */
@@ -2783,6 +2926,7 @@ function afterData() {
   if (S.view === "carousels") renderCarousels();
   if (S.view === "calendar") renderCalendar();
   if (S.view === "studio") { renderSetChips(); renderInspector(); draw(); stripSoon(); }
+  if (S.view === "ideas") renderIdeaDeck();
 }
 function syncCurrent() {
   if (!S.cur) {
@@ -2820,6 +2964,10 @@ function subscribe() {
     S.posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     S.loaded.posts = true; afterData();
     const pv = $("#pvBody").dataset.id; if (!$("#postView").hidden && pv) { if (S.posts.some((p) => p.id === pv)) openPostView(pv); else $("#postView").hidden = true; }
+  }, onErr);
+  S.db.collection("ideas").onSnapshot((snap) => {
+    S.ideas = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order || 0) - (b.order || 0) || (a.createdAt || 0) - (b.createdAt || 0));
+    S.loaded.ideas = true; afterData();
   }, onErr);
   S.db.doc("settings/autoreplies").onSnapshot((snap) => { AU.defaults = snap.exists ? snap.data() : null; }, onErr);
   S.db.doc("settings/ttreplies").onSnapshot((snap) => { TT.defaults = snap.exists ? snap.data() : null; }, onErr);
@@ -3185,6 +3333,22 @@ function bind() {
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#picker").hidden) closePicker(); });
   if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener("loadingdone", () => { draw(); stripSoon(); });
+
+  // idea deck
+  $("#ideaSkipBtn").addEventListener("click", () => { const id = ideaFrontId(); if (id) commitIdea(id, "skipped", -1); });
+  $("#ideaKeepBtn").addEventListener("click", () => { const id = ideaFrontId(); if (id) commitIdea(id, "saved", 1); });
+  $("#ideaStage").addEventListener("click", (e) => { if (e.target.closest("#ideaRestoreBtn")) restoreSkippedIdeas(); });
+  $("#ideaSavedBtn").addEventListener("click", () => { renderIdeaSaved(); $("#ideaSaved").hidden = false; });
+  $("#ideaSavedClose").addEventListener("click", () => { $("#ideaSaved").hidden = true; });
+  $("#ideaSaved").addEventListener("click", (e) => {
+    if (e.target.id === "ideaSaved") { $("#ideaSaved").hidden = true; return; }
+    const b = e.target.closest("[data-idea-unsave]"); if (b) unsaveIdea(b.dataset.ideaUnsave);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("#ideaSaved").hidden) { $("#ideaSaved").hidden = true; return; }
+    if (S.view !== "ideas" || e.target.closest("input,textarea,select") || !$("#ideaSaved").hidden) return;
+    if (e.key === "ArrowLeft") $("#ideaSkipBtn").click(); else if (e.key === "ArrowRight") $("#ideaKeepBtn").click();
+  });
 }
 function openPicker() {
   if (!S.sets.length) { toast("Create an image set in Media Bank first."); return; }
