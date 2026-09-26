@@ -2368,7 +2368,7 @@ const TT_STARTER = [
   "בשמחה! תיכנסו ללינק בפרופיל, הכל זמין בערוץ הטלגרם 🔥",
   "הנה: לינק בפרופיל ← ערוץ הטלגרם. בהצלחה ✌️",
 ];
-const TT = { list: [], loaded: false, loading: false, err: null, videos: null, videosErr: null, defaults: null, F: null, perm: null };
+const TT = { list: [], loaded: false, loading: false, err: null, videos: null, videosErr: null, defaults: null, F: null, perm: null, cachedAt: null, cacheSig: "" };
 const ttReplies = () => (TT.defaults && Array.isArray(TT.defaults.replies) && TT.defaults.replies.length ? TT.defaults.replies : TT_STARTER).filter((r) => String(r).trim());
 const isUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s));
 function ifFriendly(e) {
@@ -2397,7 +2397,7 @@ function ifRows(r) {
     const j = inner.indexOf("["), k = inner.lastIndexOf("]");
     if (j >= 0 && k > j) { try { const rows = JSON.parse(inner.slice(j, k + 1)); if (Array.isArray(rows)) return rows; } catch (e) { /* not rows */ } }
   }
-  return [];
+  return null; // no rows array found: never treat an unreadable answer as "no automations"
 }
 // The Supabase tool takes plain SQL, so values are inlined as quoted literals here ($1, $2… in
 // the query). Strings are single-quoted with '' escaping; nothing user-typed is ever unquoted.
@@ -2423,7 +2423,9 @@ async function ifSql(query, params, opts) {
   try {
     const r = await Promise.race([mcp.callTool(SB, SB_SQL_TOOL, { project_id: SB_PROJECT, query: bindSql(query, params) }, { cache: false }), deadline]);
     if (r && r.isError) throw zErr("tool_error", ("Supabase: " + zText(r)).slice(0, 300));
-    return ifRows(r);
+    const rows = ifRows(r);
+    if (!rows) throw zErr("tool_error", ("Supabase answered in a way the app couldn't read: " + zText(r)).slice(0, 240));
+    return rows;
   } catch (e) { if (e && (e.code === "timeout" || e.code === "tool_error" || e.code === "bad_query")) throw e; throw ifFriendly(e); }
   finally { clearTimeout(timer); }
 }
@@ -2441,9 +2443,24 @@ async function ttLoad() {
       matched_count, replied_count, last_reply_at, backfill_requested_at, backfill_done_at, backfill_result, created_at
       from public.tiktok_automations order by created_at desc`);
     TT.loaded = true;
+    ttCacheSave();
   } catch (e) { TT.err = (e && e.message) || "Couldn't load your TikTok automations."; }
   TT.loading = false; renderTT();
 }
+// Remember the last list Supabase gave us (artifact db), so the tab shows it instantly next time.
+function ttCacheSave() {
+  TT.cachedAt = Date.now();
+  const sig = JSON.stringify(TT.list);
+  if (!S.db || sig === TT.cacheSig) return;
+  TT.cacheSig = sig;
+  S.db.doc("settings/ttcache").set({ list: TT.list, at: TT.cachedAt }).catch(() => { TT.cacheSig = ""; });
+}
+function ttCacheLoad(d) {
+  if (TT.loaded || !d || !Array.isArray(d.list)) return;
+  TT.list = d.list; TT.cachedAt = d.at || null; TT.cacheSig = JSON.stringify(d.list);
+  renderTT();
+}
+const ttShowing = () => TT.loaded || TT.cachedAt != null;
 async function ttVideos() {
   if (TT.videos) return TT.videos;
   const a = acctFor("tiktok"); if (!a) throw zErr("no_tt", "TikTok isn't connected in Zernio.");
@@ -2464,14 +2481,22 @@ function renderTT() {
   if (S.view !== "auto" || AUP.plat !== "tiktok") return;
   const ban = $("#auBanner");
   const needsOk = TT.perm === "prompt" || TT.perm === "denied";
-  $("#auNew").disabled = needsOk || !TT.loaded;
+  $("#auNew").disabled = needsOk || !ttShowing();
   if (needsOk) ban.innerHTML = TT.perm === "denied"
     ? `<div class="card bad"><h4>Supabase was declined for this page</h4><p>Reload the page and choose Allow when Claude asks, to manage TikTok auto-replies here.</p></div>`
     : `<div class="card warn"><h4>Let this page use Supabase</h4><p>Your TikTok rules live in your Supabase project. Claude asks once before the app can read or change them.</p><div><button class="btn primary sm" id="ttAllow">Allow Supabase</button></div></div>`;
-  else ban.innerHTML = TT.err ? `<div class="card bad"><h4>Couldn't reach Supabase</h4><p>${esc(TT.err)}</p></div>` : TT.loading && !TT.loaded ? `<p class="hint">Loading your TikTok automations…</p>` : "";
+  else {
+    const cached = !TT.loaded && TT.cachedAt != null;
+    const when = cached ? ` from ${esc(ago(TT.cachedAt))}` : "";
+    ban.innerHTML = TT.err
+      ? `<div class="card bad"><h4>Couldn't reach Supabase</h4><p>${esc(TT.err)}</p>${cached ? `<p>Showing your last saved list${when}. Your auto-replies keep running on the server either way. Press Refresh to try again.</p>` : ""}</div>`
+      : TT.loading && !TT.loaded
+        ? `<p class="hint">${cached ? `Showing your last saved list${when} · refreshing…` : "Loading your TikTok automations…"}</p>`
+        : "";
+  }
   const g = $("#auList");
   if (needsOk) { g.innerHTML = ""; return; }
-  if (TT.loaded && !TT.list.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>No TikTok automations yet.</b><br>Press New automation, pick a video or "Any video", and type the keyword people comment.</div>`; return; }
+  if (ttShowing() && !TT.list.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>No TikTok automations yet.</b><br>Press New automation, pick a video or "Any video", and type the keyword people comment.</div>`; return; }
   g.innerHTML = TT.list.map((a) => {
     const on = !!a.active;
     const kws = (a.keywords || []).map((k) => `<span class="kw" dir="auto">${esc(k)}</span>`).join("");
@@ -2826,6 +2851,7 @@ function subscribe() {
   }, onErr);
   S.db.doc("settings/autoreplies").onSnapshot((snap) => { AU.defaults = snap.exists ? snap.data() : null; }, onErr);
   S.db.doc("settings/ttreplies").onSnapshot((snap) => { TT.defaults = snap.exists ? snap.data() : null; }, onErr);
+  S.db.doc("settings/ttcache").onSnapshot((snap) => { if (snap.exists) ttCacheLoad(snap.data()); }, onErr);
   S.db.doc("settings/main").onSnapshot((snap) => {
     if (snap.exists) S.settings = { ...S.settings, ...snap.data() };
     if (document.activeElement !== $("#handleIn")) $("#handleIn").value = S.settings.handle || "";

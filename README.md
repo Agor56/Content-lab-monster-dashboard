@@ -18,7 +18,7 @@ TikTok comment → Zernio `comment.received` webhook → Supabase Edge Function 
 ## Files
 
 - `supabase/functions/tiktok-autoreply/index.ts`: the Edge Function source.
-- `supabase/sql/schema.sql`: the tables, plus the cron job for reference.
+- `supabase/sql/schema.sql`: the full backend setup (tables, indexes, triggers, lock-down, secrets generated in-DB, cron job). Re-runnable.
 - `app/carousel-engine.html`: the app page as published (the platform adds the doctype/head wrapper).
 
 ## Limits

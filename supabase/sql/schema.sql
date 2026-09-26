@@ -1,5 +1,12 @@
 -- TikTok comment auto-reply: Supabase schema (project kbudvqcnmejuoxyncvtq).
 -- Applied as migrations "tiktok_autoreply" and "move_pg_net_to_extensions".
+-- Complete and re-runnable: run it in the Supabase SQL editor to rebuild the backend from scratch.
+-- No secrets in this file: the keys below are generated inside the database.
+
+create extension if not exists pgcrypto;
+create extension if not exists pg_net with schema extensions;
+create extension if not exists pg_cron;
+
 
 create table if not exists public.tiktok_automations (
   id            uuid primary key default gen_random_uuid(),
@@ -49,13 +56,64 @@ create table if not exists public.tiktok_webhook_events (
 -- webhook_secret and sweep_key are generated in the database; ZERNIO_API_KEY is an Edge Function secret.
 create table if not exists public.tiktok_config (key text primary key, value text not null);
 
--- Triggers keep matched_count / replied_count / last_reply_at current. RLS is on with no
--- policies and anon/authenticated are revoked, so only the service role (the function) and
--- the owner's SQL access can read these tables.
+-- Random secrets, generated in the database (never stored in git).
+insert into public.tiktok_config (key, value) values
+  ('webhook_secret', encode(gen_random_bytes(32), 'hex')),
+  ('sweep_key',      encode(gen_random_bytes(32), 'hex'))
+on conflict (key) do nothing;
 
--- Every-minute sweep (pg_cron + pg_net), authenticated with the sweep key from tiktok_config:
--- select cron.schedule('tiktok-autoreply-sweep', '* * * * *', $$select net.http_post(
---   url := 'https://kbudvqcnmejuoxyncvtq.supabase.co/functions/v1/tiktok-autoreply',
---   headers := jsonb_build_object('Content-Type','application/json','X-Sweep-Key',
---     (select value from public.tiktok_config where key='sweep_key')),
---   body := '{}'::jsonb, timeout_milliseconds := 55000);$$);
+-- Indexes
+create index if not exists tiktok_automations_lookup   on public.tiktok_automations (account_id, active, video_id);
+create index if not exists tiktok_replies_by_automation on public.tiktok_replies (automation_id, created_at desc);
+create index if not exists tiktok_replies_by_commenter  on public.tiktok_replies (video_id, commenter_id);
+
+-- Keep updated_at current
+create or replace function public.tiktok_touch_updated_at()
+returns trigger language plpgsql set search_path to 'public' as $$
+begin new.updated_at = now(); return new; end $$;
+drop trigger if exists tiktok_automations_touch on public.tiktok_automations;
+create trigger tiktok_automations_touch before update on public.tiktok_automations
+  for each row execute function public.tiktok_touch_updated_at();
+
+-- Keep matched_count / replied_count / last_reply_at current
+create or replace function public.tiktok_replies_count()
+returns trigger language plpgsql security definer set search_path to 'public' as $$
+begin
+  if tg_op = 'INSERT' and new.automation_id is not null then
+    update public.tiktok_automations set matched_count = matched_count + 1 where id = new.automation_id;
+  end if;
+  if new.automation_id is not null and new.status = 'sent'
+     and (tg_op = 'INSERT' or old.status is distinct from 'sent') then
+    update public.tiktok_automations set replied_count = replied_count + 1, last_reply_at = now() where id = new.automation_id;
+  end if;
+  return new;
+end $$;
+drop trigger if exists tiktok_replies_count on public.tiktok_replies;
+create trigger tiktok_replies_count after insert or update of status on public.tiktok_replies
+  for each row execute function public.tiktok_replies_count();
+revoke all on function public.tiktok_replies_count() from public, anon, authenticated;
+
+-- Lock down: RLS on, no policies, no anon/authenticated access. Only the service role
+-- (the Edge Function) and the owner's SQL access can read or write these tables.
+alter table public.tiktok_automations    enable row level security;
+alter table public.tiktok_replies        enable row level security;
+alter table public.tiktok_webhook_events enable row level security;
+alter table public.tiktok_config         enable row level security;
+revoke all on public.tiktok_automations, public.tiktok_replies, public.tiktok_webhook_events, public.tiktok_config from anon, authenticated;
+
+-- Every-minute sweep (backfill + one-time webhook registration), authenticated with the sweep key.
+select cron.unschedule('tiktok-autoreply-sweep') where exists (select 1 from cron.job where jobname = 'tiktok-autoreply-sweep');
+select cron.schedule('tiktok-autoreply-sweep', '* * * * *', $cron$
+  select net.http_post(
+    url := 'https://kbudvqcnmejuoxyncvtq.supabase.co/functions/v1/tiktok-autoreply',
+    headers := jsonb_build_object('Content-Type','application/json','X-Sweep-Key',
+      (select value from public.tiktok_config where key='sweep_key')),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 55000
+  );
+$cron$);
+
+-- Also needed (outside SQL):
+--   1. Deploy supabase/functions/tiktok-autoreply with JWT verification OFF.
+--   2. Add Edge Function secret ZERNIO_API_KEY in the Supabase dashboard.
+--   The function registers its Zernio webhook itself on the first sweep.
