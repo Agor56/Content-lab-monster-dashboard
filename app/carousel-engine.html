@@ -415,6 +415,20 @@ details[open]>summary::before{content:"▾"}
   #exportBtn .lbl-txt{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* inspiration library (locked) */
+.tag-pro{margin-left:8px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--line);font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);vertical-align:middle}
+.chip.mute{opacity:.55;cursor:not-allowed}
+.inspo-locked{position:relative;min-height:440px;border-radius:var(--r);overflow:hidden}
+.inspo-mock{filter:blur(3px);opacity:.55;pointer-events:none;user-select:none}
+.inspo-search{margin-bottom:12px}
+.inspo-grid{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.inspo-card{aspect-ratio:9/16;border-radius:var(--r-sm);background:var(--surface-2);border:1px solid var(--line)}
+.lockcard{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:32px;background:color-mix(in srgb,var(--bg) 55%,transparent)}
+.lock-ic{width:44px;height:44px;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center}
+.lock-ic svg{width:20px;height:20px}
+.lockcard h3{max-width:360px}
+.lockcard p{max-width:380px;margin:0}
 </style>
 
 <div class="shell" id="shell">
@@ -423,6 +437,9 @@ details[open]>summary::before{content:"▾"}
     <div class="brand"><span class="mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7v10"/><path d="M6 5v14"/><rect width="12" height="18" x="10" y="3" rx="2"/></svg></span><span class="brand-txt"><b>Carousel Engine</b><span>Content studio</span></span></div>
   </div>
   <nav class="sb-nav" aria-label="Sections">
+    <div class="sb-group"><div class="sb-label">Discover</div>
+      <button class="nav-item tab" data-view="inspo" id="tab-inspo" title="Inspiration Library"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span class="txt">Inspiration Library</span></button>
+    </div>
     <div class="sb-group"><div class="sb-label">Create</div>
       <button class="nav-item tab on" data-view="studio" id="tab-studio" title="Carousel"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7v10"/><path d="M6 5v14"/><rect width="12" height="18" x="10" y="3" rx="2"/></svg><span class="txt">Carousel</span></button>
       <button class="nav-item tab" data-view="video" id="tab-video" title="Video"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><span class="txt">Video</span></button>
@@ -455,6 +472,32 @@ details[open]>summary::before{content:"▾"}
 <div id="banner" class="banner" hidden></div>
 
 <main>
+<section id="view-inspo" class="view" hidden>
+  <div class="mhead"><h2>Inspiration Library<span class="tag-pro">Pro</span></h2><span class="meta">A daily, searchable feed of viral short-form content across your niche.</span></div>
+  <div class="inspo-locked">
+    <div class="inspo-mock" aria-hidden="true">
+      <input class="input inspo-search" placeholder="Search viral content by keyword…" disabled>
+      <div class="pills">
+        <span class="chip mute">Talking head</span>
+        <span class="chip mute">Voiceover</span>
+        <span class="chip mute">Story time</span>
+        <span class="chip mute">Tutorial</span>
+        <span class="chip mute">Text-on-screen</span>
+        <span class="chip mute">Skit</span>
+      </div>
+      <div class="inspo-grid">
+        <div class="inspo-card"></div><div class="inspo-card"></div><div class="inspo-card"></div><div class="inspo-card"></div>
+        <div class="inspo-card"></div><div class="inspo-card"></div><div class="inspo-card"></div><div class="inspo-card"></div>
+      </div>
+    </div>
+    <div class="lockcard">
+      <div class="lock-ic"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <h3>Unlock the Inspiration Library</h3>
+      <p class="hint">Browse what's working right now, filter by topic and format, and find ideas worth recreating — refreshed daily. Upgrade to a paid plan to unlock it.</p>
+      <button class="btn primary" id="inspoUpgradeBtn">Upgrade to unlock</button>
+    </div>
+  </div>
+</section>
 <section id="view-studio" class="studio">
   <aside class="panel config" aria-label="Create a carousel">
     <div class="group">
@@ -2788,12 +2831,12 @@ function renderUserChip() {
 }
 
 /* ---------- views ---------- */
-const CRUMBS = { studio: ["Create", "Carousel"], video: ["Create", "Video"], media: ["Create", "Media Bank"], carousels: ["Publish", "My Carousels"], calendar: ["Publish", "Calendar"], auto: ["Automate", "Comment automations"] };
+const CRUMBS = { inspo: ["Discover", "Inspiration Library"], studio: ["Create", "Carousel"], video: ["Create", "Video"], media: ["Create", "Media Bank"], carousels: ["Publish", "My Carousels"], calendar: ["Publish", "Calendar"], auto: ["Automate", "Comment automations"] };
 function go(view) {
   S.view = view;
   const cr = CRUMBS[view] || ["", view]; $("#crumbRoot").textContent = cr[0]; $("#crumbCur").textContent = cr[1];
   setDrawer(false);
-  ["studio", "media", "video", "carousels", "auto", "calendar"].forEach((v) => { $("#view-" + v).hidden = v !== view; $("#tab-" + v).classList.toggle("on", v === view); });
+  ["inspo", "studio", "media", "video", "carousels", "auto", "calendar"].forEach((v) => { $("#view-" + v).hidden = v !== view; $("#tab-" + v).classList.toggle("on", v === view); });
   $("#exportBtn").hidden = view !== "studio";
   $("#postBtn").hidden = view !== "studio";
   $("#saveBtn").hidden = view !== "studio";
@@ -2875,6 +2918,7 @@ function bind() {
   $("#titleIn").addEventListener("input", (e) => { if (!S.cur) return; S.cur.title = e.target.value; markDirty(); });
   $("#copyIn").addEventListener("input", (e) => { if (!S.cur) return; S.cur.copy = e.target.value; markDirty(); });
   $("#captionIn").addEventListener("input", (e) => { if (!S.cur) return; S.cur.caption = e.target.value; markDirty(); });
+  $("#inspoUpgradeBtn").addEventListener("click", () => banner("Inspiration Library isn't open yet — you'll be the first to know when it ships."));
   $("#newCarBtn").addEventListener("click", newCarousel);
   $("#saveBtn").addEventListener("click", saveNow);
   document.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveNow(); } });
