@@ -2191,7 +2191,7 @@ function renderAuto() {
     const fuLine = fu && fu.active ? `<div class="meta">↳ 2nd message ${a.alsoMatchInDms && a.trigger !== "story_reply" ? `after ${fu.delay_minutes} min · sent ${fu.sent || 0}` : `paused: turn on "Also answer people who DM the keyword"`}</div>` : "";
     return `<article class="aucard${on ? "" : " off"}" data-au="${esc(id)}">
       <div class="top"><b dir="auto">${esc(a.name || "Automation")}</b><label class="switch" title="${on ? "Live" : "Paused"}"><input type="checkbox" data-au-toggle="${esc(id)}"${on ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>${on ? "Live" : "Paused"}</span></label></div>
-      <div class="meta" dir="auto">${esc(auTarget(a))}</div>
+      <div class="meta" dir="auto">${esc(auTarget(a))}${auGated(a) ? " · Followers only" : ""}</div>
       <div class="kws">${kws}</div>
       ${a.dmMessage ? `<div class="dm" dir="auto">${esc(a.dmMessage)}</div>` : ""}
       ${btns ? `<div>${btns}</div>` : ""}
@@ -2219,9 +2219,11 @@ function detectKeyword(caption) {
   const up = /\b([A-Z]{3,12})\b/.exec(t);
   return up ? up[1] : "";
 }
+const GATE_STARTER = { msg: "כדי לקבל את זה, תעקבו אחריי ותלחצו למטה 👇", btn: "עקבתי ✅", not: "נראה שעוד לא עקבת 🙂 תעקבו ותלחצו שוב" };
 function newAuForm(preset) {
   const f = Object.assign({ id: null, name: "", target: "any", platformPostId: "", postTitle: "", keywords: "", matchMode: "word", typo: true, alsoDm: true,
-    dm: DM_STARTER, link: "", buttons: [], replyOn: true, replies: auReplies().slice(), track: true, saveDefault: false, busy: false, err: null }, preset || {});
+    dm: DM_STARTER, link: "", buttons: [], replyOn: true, replies: auReplies().slice(), track: true, saveDefault: false, busy: false, err: null,
+    gateOn: false, gateHad: false, gateMsg: GATE_STARTER.msg, gateBtn: GATE_STARTER.btn, gateNot: GATE_STARTER.not }, preset || {});
   return Object.assign(f, fuFields(f.id), { fuSeen: FU.loaded });
 }
 function formFromAutomation(a) {
@@ -2229,8 +2231,13 @@ function formFromAutomation(a) {
   return newAuForm({ id: auId(a), name: a.name || "", target: a.trigger === "story_reply" ? "story" : (a.platformPostId || a.postId) ? "post" : "any",
     platformPostId: a.platformPostId || "", postTitle: a.postTitle || "", keywords: (a.keywords || []).join(", "), matchMode: a.matchMode || "contains",
     typo: !!a.typoTolerance, alsoDm: !!a.alsoMatchInDms, dm: a.dmMessage || "", link: "", buttons: (a.buttons || []).filter((b) => b.type === "url").map((b) => ({ title: b.title || "", url: b.url || "" })),
-    replyOn: all.length > 0, replies: all.length ? all : auReplies().slice(), track: a.linkTracking !== false });
+    replyOn: all.length > 0, replies: all.length ? all : auReplies().slice(), track: a.linkTracking !== false,
+    gateOn: auGated(a), gateHad: auGated(a),
+    gateMsg: (a.followGate && a.followGate.message) || GATE_STARTER.msg,
+    gateBtn: (a.followGate && a.followGate.buttonLabel) || GATE_STARTER.btn,
+    gateNot: (a.followGate && a.followGate.notFollowingMessage) || GATE_STARTER.not });
 }
+const auGated = (a) => !!(a.audience && a.audience.followerStatus === "follower");
 function openAuEditor(form) {
   AU.F = form || newAuForm();
   $("#auEditor").hidden = false; renderAuEditor();
@@ -2257,6 +2264,12 @@ function auProblemList(F) {
     if (!okUrl(b.url)) add("That link doesn't look right. Paste the full link.", `[data-au-btn-url="${k}"]`);
   });
   if (F.buttons.some((b) => b.url.trim()) && F.dm.length > DM_CAP) add(`With a button the DM maxes out at ${DM_CAP} characters.`, "#auDm");
+  if (F.target !== "story" && F.gateOn) {
+    if (!F.gateMsg.trim()) add("Write the message asking them to follow.", "#auGateMsg");
+    if (!F.gateBtn.trim()) add("Give the follow button a label.", "#auGateBtn");
+    else if (F.gateBtn.length > BTN_CAP) add(`The follow button label maxes out at ${BTN_CAP} characters.`, "#auGateBtn");
+    if (!F.gateNot.trim()) add("Write what people get if they tap before following.", "#auGateNot");
+  }
   if (FU.loaded && fuShown(F) && F.fuOn) {
     const d = Number(F.fuDelay);
     if (!F.fuMsg.trim()) add("Write the second message.", "#auFuMsg");
@@ -2302,6 +2315,15 @@ function renderAuEditor() {
     <p class="hint" id="auBtnHint"></p>
     <label class="check"><input type="checkbox" id="auTrack"${F.track ? " checked" : ""}> Count link clicks</label></div>`;
   if (F.target !== "story") {
+    h += `<div class="dmblock"><label class="switch" for="auGateOn"><input type="checkbox" id="auGateOn" role="switch"${F.gateOn ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>Only people who follow me</span></label>`;
+    if (F.gateOn) h += `<p class="hint">Followers get the DM right away. Anyone else first gets this message with a button. When they tap it while following, the DM arrives by itself. If they tap before following, they get the "not following yet" message and can tap again.</p>
+      <div class="card warn"><p>Test it first from an account that doesn't follow you. Since late August 2026 Instagram can refuse buttons to non-followers, and a refused message uses up the one DM allowed per comment, so they'd get nothing.</p></div>
+      <label class="field" for="auGateMsg"><span>Ask them to follow</span><textarea id="auGateMsg" class="input" rows="2" dir="auto">${esc(F.gateMsg)}</textarea></label>
+      <label class="field" for="auGateBtn"><span>Button <b class="counter${F.gateBtn.length > BTN_CAP ? " over" : ""}" id="auGateBtnN">${F.gateBtn.length} / ${BTN_CAP}</b></span><input id="auGateBtn" class="input" dir="auto" value="${esc(F.gateBtn)}"></label>
+      <label class="field" for="auGateNot"><span>If they tap before following</span><textarea id="auGateNot" class="input" rows="2" dir="auto">${esc(F.gateNot)}</textarea></label>`;
+    h += `</div>`;
+  }
+  if (F.target !== "story") {
     h += `<div class="dmblock"><label class="switch" for="auReplyOn"><input type="checkbox" id="auReplyOn" role="switch"${F.replyOn ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>Reply publicly under the comment too</span></label>`;
     if (F.replyOn) h += `<p class="hint">One of these is picked at random each time, so it doesn't look like a bot.</p>
       ${F.replies.map((r, k) => `<div class="replyrow"><textarea class="input" rows="1" dir="auto" data-au-reply="${k}">${esc(r)}</textarea><button class="btn ghost sm" data-au-reply-del="${k}" aria-label="Remove reply">✕</button></div>`).join("")}
@@ -2320,7 +2342,7 @@ function fuBlockHTML(F) {
     ? `<div class="card bad"><h4>Couldn't load the second message</h4><p>${esc(FU.err)}</p></div>`
     : `<p class="hint">Loading the second message…</p>`;
   let h = `<div class="dmblock"><label class="switch" for="auFuOn"><input type="checkbox" id="auFuOn" role="switch"${F.fuOn ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>Send a second message</span></label>`;
-  if (F.fuOn) h += `<p class="hint">Goes to people who DM the keyword, once, after the first DM. Instagram doesn't allow a second message to people who only commented.</p>
+  if (F.fuOn) h += `<p class="hint">Goes to people who DM the keyword, once, after the first DM. Instagram doesn't allow a second message to people who only commented.${F.gateOn ? " With \"Only people who follow me\" on, it waits until they follow and get the real DM." : ""}</p>
     <label class="field" for="auFuMsg"><span>Second message</span><textarea id="auFuMsg" class="input" rows="3" dir="auto">${esc(F.fuMsg)}</textarea></label>
     <label class="field" for="auFuLink"><span>Link <b>optional, goes inside the message</b></span><input id="auFuLink" class="input" dir="ltr" placeholder="https://…" value="${esc(F.fuLink)}"></label>
     <label class="field" for="auFuDelay"><span>Send it after <b>minutes</b></span><input id="auFuDelay" class="input" type="number" inputmode="numeric" min="1" max="1380" step="1" value="${esc(F.fuDelay)}" style="max-width:120px"></label>`;
@@ -2352,6 +2374,11 @@ function auArgs(F, meta, extra) {
   if (!F.id) Object.assign(a, { profile_id: meta.profileId, account_id: meta.accountId });
   if (F.target === "post") { a.platform_post_id = F.platformPostId; a.post_title = F.postTitle || null; }
   else if (!F.id) a.platform_post_id = null;
+  // Followers-only: known followers get the DM; everyone else first gets a tap-to-confirm "follow me" message.
+  if (F.target !== "story" && F.gateOn) {
+    a.audience = { followerStatus: "follower", whenUnknown: "verify" };
+    a.follow_gate = { message: F.gateMsg.trim(), buttonLabel: F.gateBtn.trim(), notFollowingMessage: F.gateNot.trim() };
+  } else if (F.gateHad) a.audience = { followerStatus: "any", whenUnknown: "send" };
   return Object.assign(a, extra || {});
 }
 async function auSaveDefaults(replies) {
@@ -3284,6 +3311,9 @@ function bind() {
     else if (t.dataset.auBtnTitle != null) F.buttons[+t.dataset.auBtnTitle].title = t.value;
     else if (t.dataset.auBtnUrl != null) F.buttons[+t.dataset.auBtnUrl].url = t.value;
     else if (t.dataset.auReply != null) F.replies[+t.dataset.auReply] = t.value;
+    else if (t.id === "auGateMsg") F.gateMsg = t.value;
+    else if (t.id === "auGateBtn") { F.gateBtn = t.value; const n = $("#auGateBtnN"); n.textContent = `${t.value.length} / ${BTN_CAP}`; n.classList.toggle("over", t.value.length > BTN_CAP); }
+    else if (t.id === "auGateNot") F.gateNot = t.value;
     else if (t.id === "auFuMsg") F.fuMsg = t.value;
     else if (t.id === "auFuLink") F.fuLink = t.value;
     else if (t.id === "auFuDelay") F.fuDelay = t.value;
@@ -3295,6 +3325,7 @@ function bind() {
     else if (t.id === "auPost") { F.platformPostId = t.value; F.postTitle = t.value ? (t.selectedOptions[0] && t.selectedOptions[0].textContent.replace(/^[^·]*·\s*/, "")) || "" : ""; auEdFoot(); }
     else if (t.id === "auTypo") F.typo = t.checked;
     else if (t.id === "auAlsoDm") { F.alsoDm = t.checked; renderAuEditor(); }
+    else if (t.id === "auGateOn") { F.gateOn = t.checked; renderAuEditor(); }
     else if (t.id === "auFuOn") { F.fuOn = t.checked; renderAuEditor(); if (F.fuOn) { const m = $("#auFuMsg"); if (m && !m.value) m.focus(); } }
     else if (t.id === "auTrack") F.track = t.checked;
     else if (t.id === "auSaveDef") F.saveDefault = t.checked;

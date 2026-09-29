@@ -15,6 +15,7 @@ const ZERNIO = "https://zernio.com/api/v1";
 const FN_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/ig-followup`;
 const WINDOW_MS = 23 * 3600_000;       // stay inside Instagram's 24h messaging window
 const FIRST_DM_GRACE_MS = 30 * 60_000; // how long to keep waiting for Zernio's first DM
+const GATED_GRACE_MS = 6 * 3600_000;   // followers-only automations: time to follow and tap
 const SKEW_MS = 5_000;
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
@@ -37,6 +38,7 @@ type Automation = {
   id: string; platform: string; trigger: string; accountId: string; keywords: string[];
   matchMode?: string; typoTolerance?: boolean; excludeKeywords?: string[];
   alsoMatchInDms?: boolean; isActive?: boolean; dmDelaySeconds?: number;
+  dmMessage?: string; dmMessageVariations?: string[]; audience?: { followerStatus?: string };
 };
 
 const json = (body: unknown, status = 200) =>
@@ -59,9 +61,9 @@ function safeEqual(a: string, b: string) {
 // Lowercase, fold width/diacritics variants, drop Hebrew niqqud and invisible marks.
 function norm(s: string) {
   return (s || "").normalize("NFKC").toLowerCase()
-    .replace(/[֑-ׇ]/g, "")
-    .replace(/[​-‏‪-‮⁦-⁩﻿]/g, "")
-    .replace(/[״”“"׳'’`]/g, "")
+    .replace(/[\u0591-\u05C7]/g, "")
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+    .replace(/[\u05F4\u201D\u201C"\u05F3'\u2019`]/g, "")
     .replace(/\s+/g, " ").trim();
 }
 const words = (s: string) => norm(s).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
@@ -195,10 +197,15 @@ async function ensureWebhook() {
   return existing ? "found-existing" : "created";
 }
 
-async function firstDmWentOut(accountId: string, conversationId: string, since: number) {
+// With a follow gate, our first outgoing message may be the "please follow" prompt, not the DM,
+// so only an outgoing message that starts like the automation's DM counts.
+async function firstDmWentOut(accountId: string, conversationId: string, since: number, a: Automation | undefined) {
   const q = new URLSearchParams({ accountId, sortOrder: "desc", limit: "20" });
   const r = await zernio(`/inbox/conversations/${encodeURIComponent(conversationId)}/messages?${q}`);
-  return (r?.messages || []).some((x: any) => x.direction === "outgoing" && new Date(x.createdAt).getTime() >= since - SKEW_MS);
+  const gated = a?.audience?.followerStatus === "follower";
+  const heads = [a?.dmMessage, ...(a?.dmMessageVariations || [])].map((t) => norm(t || "").slice(0, 25)).filter(Boolean);
+  return (r?.messages || []).some((x: any) => x.direction === "outgoing" && new Date(x.createdAt).getTime() >= since - SKEW_MS &&
+    (!gated || heads.some((h) => norm(String(x.message ?? x.text ?? "")).startsWith(h))));
 }
 
 async function finish(id: string, status: string, error: string | null = null) {
@@ -211,13 +218,18 @@ async function sendOne(row: any, fus: Map<string, Followup>, autos: Map<string, 
   if (Date.now() - trig > WINDOW_MS) return finish(row.id, "skipped", "outside Instagram's 24h window");
   const fu = fus.get(row.automation_id);
   if (!fu) return finish(row.id, "skipped", "second message turned off");
-  if (autos && !eligible(autos.get(row.automation_id), row.account_id)) return finish(row.id, "skipped", "automation paused, deleted or no longer answers DMs");
-  if (!(await firstDmWentOut(row.account_id, row.conversation_id, trig))) {
-    if (Date.now() - trig < FIRST_DM_GRACE_MS) {
-      await db.from("ig_followup_sends").update({ status: "scheduled", send_after: new Date(Date.now() + 60_000).toISOString() }).eq("id", row.id);
-      return "waiting-for-first-dm";
-    }
-    return finish(row.id, "skipped", "first DM never went out");
+  const retryLater = async (why: string) => {
+    await db.from("ig_followup_sends").update({ status: "scheduled", send_after: new Date(Date.now() + 60_000).toISOString() }).eq("id", row.id);
+    return why;
+  };
+  // Without the automation's settings we can't tell a follow-gate prompt from the real DM, so wait.
+  if (!autos) return Date.now() - trig < FIRST_DM_GRACE_MS ? retryLater("waiting-for-zernio") : finish(row.id, "skipped", "couldn't read the automation from Zernio");
+  const a = autos.get(row.automation_id);
+  if (!eligible(a, row.account_id)) return finish(row.id, "skipped", "automation paused, deleted or no longer answers DMs");
+  const gated = a!.audience?.followerStatus === "follower";
+  if (!(await firstDmWentOut(row.account_id, row.conversation_id, trig, a))) {
+    if (Date.now() - trig < (gated ? GATED_GRACE_MS : FIRST_DM_GRACE_MS)) return retryLater("waiting-for-first-dm");
+    return finish(row.id, "skipped", gated ? "real DM never went out (didn't follow?)" : "first DM never went out");
   }
   try {
     await zernio(`/inbox/conversations/${encodeURIComponent(row.conversation_id)}/messages`, {
@@ -240,7 +252,7 @@ async function onSweep() {
 
   const fus = new Map((await activeFollowups()).map((f) => [f.automation_id, f]));
   let autos: Map<string, Automation> | null = null;
-  try { autos = await automationsById(); } catch { autos = null; } // if Zernio's list is down, still send; the first-DM check still guards
+  try { autos = await automationsById(); } catch { autos = null; }
   const tally: Record<string, number> = {};
   for (const d of due) {
     // Claim the row, so an overlapping sweep can't send it twice.

@@ -36,6 +36,7 @@ Instagram DM → Zernio `message.received` webhook → Edge Function `ig-followu
 - **Settings** are managed in the Carousel Engine: Comment automations → Instagram → Edit → "Send a second message". Saved in `ig_followups`, keyed by the Zernio automation id.
 - **Safety:** one second message per person per automation (unique `automation_id, conversation_id`). Before sending, the sweep checks the conversation shows an outgoing message after their keyword DM (Zernio's first DM went out); it waits up to 30 minutes for it, then skips. Nothing is sent more than 23 hours after their DM (Instagram's 24-hour window). Paused, deleted or story-reply automations are skipped.
 - **Commenters** don't get the second message: Instagram allows only one private message per comment until the person writes back.
+- **Followers only:** the editor's "Only people who follow me" switch sets Zernio's own follow gate (`audience: {followerStatus: "follower", whenUnknown: "verify"}` + `followGate` texts). Followers get the DM; everyone else first gets a "follow me" message with a button, and the DM arrives once they tap while following. For these automations the second message only counts a sent message that starts like the automation's DM (not the "follow me" prompt), and waits up to 6 hours for it. Test with a non-following account before relying on it: since late August 2026 Instagram can refuse buttons to non-followers.
 
 ## Where things live
 
