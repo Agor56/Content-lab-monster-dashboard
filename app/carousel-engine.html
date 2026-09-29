@@ -2100,7 +2100,47 @@ async function auLoad() {
     AU.loaded = true;
   } catch (e) { AU.err = (e && e.message) || "Couldn't load your automations."; }
   AU.loading = false; if (S.view === "auto") renderAuto();
+  fuLoad();
 }
+// Second messages live in Supabase (public.ig_followups); the ig-followup Edge Function sends them.
+const FU = { map: {}, loaded: false, loading: false, err: null, perm: null };
+async function fuLoad() {
+  if (FU.loading) return;
+  FU.loading = true; FU.err = null;
+  try {
+    if (TT.perm !== "granted" && TT.perm !== "unknown") TT.perm = await ttPermState();
+    FU.perm = TT.perm;
+    if (FU.perm === "prompt" || FU.perm === "denied") return;
+    const rows = await ifSql(`select f.automation_id, f.message, f.link, f.delay_minutes, f.active,
+      (select count(*) from public.ig_followup_sends s where s.automation_id = f.automation_id and s.status = 'sent')::int as sent
+      from public.ig_followups f`);
+    FU.map = Object.fromEntries(rows.map((r) => [r.automation_id, r]));
+    FU.loaded = true;
+  } catch (e) { FU.err = (e && e.message) || "Couldn't load your second messages."; }
+  finally {
+    FU.loading = false;
+    if (S.view === "auto") renderAuto();
+    const F = AU.F;
+    if (F && !F.fuSeen && (FU.loaded || FU.err || FU.perm === "prompt" || FU.perm === "denied")) {
+      if (FU.loaded) Object.assign(F, fuFields(F.id), { fuSeen: true });
+      renderAuEditor();
+    }
+  }
+}
+async function fuAllow() {
+  const p = await getPerms();
+  if (p) { try { const r = await p.request(["mcp:" + SB]); TT.perm = r["mcp:" + SB] || "unknown"; } catch (e) { TT.perm = "unknown"; } }
+  else TT.perm = "unknown";
+  FU.perm = TT.perm;
+  if (AU.F) { AU.F.fuSeen = false; renderAuEditor(); }
+  fuLoad();
+}
+function fuFields(id) {
+  const r = id && FU.map[id];
+  return r ? { fuOn: !!r.active, fuMsg: r.message || "", fuLink: r.link || "", fuDelay: String(r.delay_minutes || 10), fuHad: true }
+    : { fuOn: false, fuMsg: "", fuLink: "", fuDelay: "10", fuHad: false };
+}
+const fuShown = (F) => F.target !== "story" && F.alsoDm;
 async function auPosts() {
   if (AU.posts) return AU.posts;
   const m = await auMeta();
@@ -2147,12 +2187,15 @@ function renderAuto() {
     const kws = (a.keywords || []).length ? a.keywords.map((k) => `<span class="kw" dir="auto">${esc(k)}</span>`).join("") : `<span class="meta">Any comment</span>`;
     const stats = auStats(a).map(([l, n]) => `<span>${l} <b>${n}</b></span>`).join("");
     const btns = (a.buttons || []).map((b) => `<span class="meta">🔗 ${esc(b.title || "")}</span>`).join(" ");
+    const fu = FU.map[id];
+    const fuLine = fu && fu.active ? `<div class="meta">↳ 2nd message ${a.alsoMatchInDms && a.trigger !== "story_reply" ? `after ${fu.delay_minutes} min · sent ${fu.sent || 0}` : `paused: turn on "Also answer people who DM the keyword"`}</div>` : "";
     return `<article class="aucard${on ? "" : " off"}" data-au="${esc(id)}">
       <div class="top"><b dir="auto">${esc(a.name || "Automation")}</b><label class="switch" title="${on ? "Live" : "Paused"}"><input type="checkbox" data-au-toggle="${esc(id)}"${on ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>${on ? "Live" : "Paused"}</span></label></div>
       <div class="meta" dir="auto">${esc(auTarget(a))}</div>
       <div class="kws">${kws}</div>
       ${a.dmMessage ? `<div class="dm" dir="auto">${esc(a.dmMessage)}</div>` : ""}
       ${btns ? `<div>${btns}</div>` : ""}
+      ${fuLine}
       ${stats ? `<div class="stats">${stats}</div>` : ""}
       <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-au-edit="${esc(id)}">Edit</button><button class="btn sm ghost" data-au-logs="${esc(id)}">Who got it</button><button class="btn sm ghost" data-au-del="${esc(id)}">Delete</button></div>
     </article>`;
@@ -2177,8 +2220,9 @@ function detectKeyword(caption) {
   return up ? up[1] : "";
 }
 function newAuForm(preset) {
-  return Object.assign({ id: null, name: "", target: "any", platformPostId: "", postTitle: "", keywords: "", matchMode: "word", typo: true, alsoDm: true,
+  const f = Object.assign({ id: null, name: "", target: "any", platformPostId: "", postTitle: "", keywords: "", matchMode: "word", typo: true, alsoDm: true,
     dm: DM_STARTER, link: "", buttons: [], replyOn: true, replies: auReplies().slice(), track: true, saveDefault: false, busy: false, err: null }, preset || {});
+  return Object.assign(f, fuFields(f.id), { fuSeen: FU.loaded });
 }
 function formFromAutomation(a) {
   const all = [a.commentReply, ...(a.commentReplyVariations || [])].filter(Boolean);
@@ -2191,6 +2235,7 @@ function openAuEditor(form) {
   AU.F = form || newAuForm();
   $("#auEditor").hidden = false; renderAuEditor();
   if (AU.F.target === "post") loadPostsForEditor();
+  if (!FU.loaded) fuLoad();
 }
 async function loadPostsForEditor() {
   if (AU.posts) { renderAuEditor(); return; }
@@ -2212,6 +2257,13 @@ function auProblemList(F) {
     if (!okUrl(b.url)) add("That link doesn't look right. Paste the full link.", `[data-au-btn-url="${k}"]`);
   });
   if (F.buttons.some((b) => b.url.trim()) && F.dm.length > DM_CAP) add(`With a button the DM maxes out at ${DM_CAP} characters.`, "#auDm");
+  if (FU.loaded && fuShown(F) && F.fuOn) {
+    const d = Number(F.fuDelay);
+    if (!F.fuMsg.trim()) add("Write the second message.", "#auFuMsg");
+    else if (withLink(F.fuMsg, F.fuLink).length > 1000) add("Keep the second message under 1,000 characters.", "#auFuMsg");
+    if (F.fuLink.trim() && !okUrl(F.fuLink)) add("The second message's link doesn't look right. Paste the full link.", "#auFuLink");
+    if (!Number.isInteger(d) || d < 1 || d > 1380) add("Send the second message between 1 and 1,380 minutes (23 hours) after the first.", "#auFuDelay");
+  }
   return out;
 }
 const auFormProblems = (F) => auProblemList(F).map((x) => x.msg);
@@ -2256,8 +2308,23 @@ function renderAuEditor() {
       <div class="row" style="flex-wrap:wrap"><button class="btn ghost sm" id="auReplyAdd"${F.replies.length >= 6 ? " disabled" : ""}>+ Add reply</button><button class="btn ghost sm" id="auReplyDefaults">Use my defaults</button><label class="check"><input type="checkbox" id="auSaveDef"${F.saveDefault ? " checked" : ""}> Save these as my default replies</label></div>`;
     h += `</div>`;
   }
+  if (fuShown(F)) h += fuBlockHTML(F);
   $("#auEdBody").innerHTML = h;
   auEdFoot();
+}
+function fuBlockHTML(F) {
+  if (FU.perm === "prompt" || FU.perm === "denied") return FU.perm === "denied"
+    ? `<div class="card bad"><h4>Second message needs Supabase</h4><p>Supabase was declined for this page. Reload and choose Allow to add a second message.</p></div>`
+    : `<div class="card warn"><h4>Second message needs Supabase</h4><p>Second messages are saved in your Supabase project, which sends them. Claude asks once.</p><div><button class="btn primary sm" id="auFuAllow">Allow Supabase</button></div></div>`;
+  if (!FU.loaded) return FU.err
+    ? `<div class="card bad"><h4>Couldn't load the second message</h4><p>${esc(FU.err)}</p></div>`
+    : `<p class="hint">Loading the second message…</p>`;
+  let h = `<div class="dmblock"><label class="switch" for="auFuOn"><input type="checkbox" id="auFuOn" role="switch"${F.fuOn ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>Send a second message</span></label>`;
+  if (F.fuOn) h += `<p class="hint">Goes to people who DM the keyword, once, after the first DM. Instagram doesn't allow a second message to people who only commented.</p>
+    <label class="field" for="auFuMsg"><span>Second message</span><textarea id="auFuMsg" class="input" rows="3" dir="auto">${esc(F.fuMsg)}</textarea></label>
+    <label class="field" for="auFuLink"><span>Link <b>optional, goes inside the message</b></span><input id="auFuLink" class="input" dir="ltr" placeholder="https://…" value="${esc(F.fuLink)}"></label>
+    <label class="field" for="auFuDelay"><span>Send it after <b>minutes</b></span><input id="auFuDelay" class="input" type="number" inputmode="numeric" min="1" max="1380" step="1" value="${esc(F.fuDelay)}" style="max-width:120px"></label>`;
+  return h + `</div>`;
 }
 function auEdFoot() {
   const F = AU.F; if (!F) return;
@@ -2307,8 +2374,9 @@ async function auSave() {
     else o = await zTool("comment_automations_create_comment_automation", args);
     if (o && o.success === false) throw zErr("tool_error", o.error || o.message || "Zernio refused the automation.");
     if (F.saveDefault && F.replyOn) await auSaveDefaults(F.replies);
+    const fuNote = await fuSave(F, F.id || (o && o.automation && auId(o.automation)) || (o && auId(o)) || null);
     if (AU.F === F) { $("#auEditor").hidden = true; AU.F = null; }
-    toast(F.id ? "Automation updated" : "Automation is live");
+    toast((F.id ? "Automation updated" : "Automation is live") + fuNote);
     auLoad();
   } catch (e) {
     F.err = (e && e.message) || "Couldn't save the automation."; F.busy = false;
@@ -2316,13 +2384,34 @@ async function auSave() {
     if (e && e.code === "timeout") auLoad();
   } finally { clearTimeout(slow); }
 }
+// Runs after Zernio saved the automation, so a failure here never undoes the automation itself.
+async function fuSave(F, id) {
+  if (!FU.loaded) return "";
+  const want = fuShown(F) && F.fuOn;
+  if (!want && !F.fuHad) return "";
+  if (!id) return want ? " The second message didn't save. Open it again and press Save." : "";
+  try {
+    if (want) await ifSql(`insert into public.ig_followups (automation_id, message, link, delay_minutes, active)
+      values ($1, $2, $3, $4::int, true)
+      on conflict (automation_id) do update set message = excluded.message, link = excluded.link, delay_minutes = excluded.delay_minutes, active = true
+      returning automation_id`, [id, F.fuMsg.trim(), F.fuLink.trim() ? normUrl(F.fuLink) : null, Number(F.fuDelay)], { write: true });
+    else await ifSql(`delete from public.ig_followups where automation_id = $1 returning automation_id`, [id], { write: true });
+    return "";
+  } catch (e) {
+    return ` But the second message didn't save: ${(e && e.message) || "Supabase didn't answer"}.`;
+  }
+}
 async function auToggle(id, on) {
   try { await zTool("comment_automations_update_comment_automation", { automation_id: id, is_active: on }); toast(on ? "Automation is live" : "Automation paused"); }
   catch (e) { toast((e && e.message) || "Couldn't change it."); }
   auLoad();
 }
 async function auDelete(id) {
-  try { await zTool("comment_automations_delete_comment_automation", { automation_id: id }); toast("Automation deleted"); }
+  try {
+    await zTool("comment_automations_delete_comment_automation", { automation_id: id }); toast("Automation deleted");
+    // Leftovers are harmless (the sender skips automations that no longer exist), so a failure here stays quiet.
+    if (FU.map[id]) { try { await ifSql(`delete from public.ig_followups where automation_id = $1 returning automation_id`, [id], { write: true }); } catch (e) { /* see above */ } }
+  }
   catch (e) { toast((e && e.message) || "Couldn't delete it."); }
   auLoad();
 }
@@ -3183,6 +3272,7 @@ function bind() {
     else if (b.id === "auReplyAdd") { F.replies.push(""); renderAuEditor(); }
     else if (b.dataset.auReplyDel != null) { F.replies.splice(+b.dataset.auReplyDel, 1); renderAuEditor(); }
     else if (b.id === "auReplyDefaults") { F.replies = auReplies().slice(); renderAuEditor(); }
+    else if (b.id === "auFuAllow") fuAllow();
   });
   auEd.addEventListener("input", (e) => {
     const F = AU.F, t = e.target; if (!F) return;
@@ -3194,6 +3284,9 @@ function bind() {
     else if (t.dataset.auBtnTitle != null) F.buttons[+t.dataset.auBtnTitle].title = t.value;
     else if (t.dataset.auBtnUrl != null) F.buttons[+t.dataset.auBtnUrl].url = t.value;
     else if (t.dataset.auReply != null) F.replies[+t.dataset.auReply] = t.value;
+    else if (t.id === "auFuMsg") F.fuMsg = t.value;
+    else if (t.id === "auFuLink") F.fuLink = t.value;
+    else if (t.id === "auFuDelay") F.fuDelay = t.value;
     auEdFoot();
   });
   auEd.addEventListener("change", (e) => {
@@ -3201,7 +3294,8 @@ function bind() {
     if (t.id === "auMatch") { F.matchMode = t.value; renderAuEditor(); }
     else if (t.id === "auPost") { F.platformPostId = t.value; F.postTitle = t.value ? (t.selectedOptions[0] && t.selectedOptions[0].textContent.replace(/^[^·]*·\s*/, "")) || "" : ""; auEdFoot(); }
     else if (t.id === "auTypo") F.typo = t.checked;
-    else if (t.id === "auAlsoDm") { F.alsoDm = t.checked; auEdFoot(); }
+    else if (t.id === "auAlsoDm") { F.alsoDm = t.checked; renderAuEditor(); }
+    else if (t.id === "auFuOn") { F.fuOn = t.checked; renderAuEditor(); if (F.fuOn) { const m = $("#auFuMsg"); if (m && !m.value) m.focus(); } }
     else if (t.id === "auTrack") F.track = t.checked;
     else if (t.id === "auSaveDef") F.saveDefault = t.checked;
     else if (t.id === "auReplyOn") { F.replyOn = t.checked; renderAuEditor(); }

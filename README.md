@@ -24,3 +24,25 @@ TikTok comment → Zernio `comment.received` webhook → Supabase Edge Function 
 ## Limits
 
 TikTok doesn't allow automated DMs from non-business accounts. On a Business account only replies to user-started DMs are possible.
+
+# Instagram second message
+
+An Instagram automation can send one extra DM a few minutes after the first one, to people who **DM the keyword**. Zernio still sends the first DM exactly as before; this is a separate side path, so if it fails the first DM and public replies are unaffected.
+
+## How it works
+
+Instagram DM → Zernio `message.received` webhook → Edge Function `ig-followup` → if the text matches an automation that has "Also answer people who DM the keyword" on and a second message saved, one row is scheduled in `ig_followup_sends` → the `ig-followup-sweep` pg_cron job (every minute) sends due rows through Zernio.
+
+- **Settings** are managed in the Carousel Engine: Comment automations → Instagram → Edit → "Send a second message". Saved in `ig_followups`, keyed by the Zernio automation id.
+- **Safety:** one second message per person per automation (unique `automation_id, conversation_id`). Before sending, the sweep checks the conversation shows an outgoing message after their keyword DM (Zernio's first DM went out); it waits up to 30 minutes for it, then skips. Nothing is sent more than 23 hours after their DM (Instagram's 24-hour window). Paused, deleted or story-reply automations are skipped.
+- **Commenters** don't get the second message: Instagram allows only one private message per comment until the person writes back.
+
+## Where things live
+
+- Supabase project `kbudvqcnmejuoxyncvtq`: tables `ig_followups`, `ig_followup_sends`, `ig_followup_events`, `ig_followup_config`; Edge Function `ig-followup` (JWT verification off, HMAC-signed webhook instead); reuses the `ZERNIO_API_KEY` secret; cron job `ig-followup-sweep`.
+- Zernio webhook `ig-followup` (`message.received`) → `https://kbudvqcnmejuoxyncvtq.supabase.co/functions/v1/ig-followup`. The function registers it itself on its first sweep.
+
+## Files
+
+- `supabase/functions/ig-followup/index.ts`: the Edge Function source.
+- `supabase/sql/ig_followup_schema.sql`: tables, lock-down, secrets generated in-DB, cron job. Re-runnable.
