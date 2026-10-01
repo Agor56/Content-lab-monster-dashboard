@@ -785,6 +785,26 @@ function saveState(s, text) {
   const el = $("#saveBtn"); el.dataset.s = s; el.textContent = text;
   el.disabled = !(s === "dirty" || s === "error");
 }
+// Close an overlay only when the press started on the backdrop too. Selecting text in a field and
+// letting go outside the window also reports a click on the backdrop, which used to close it mid-edit.
+function onBackdrop(el, fn) {
+  let down = false;
+  el.addEventListener("pointerdown", (e) => { down = e.target === el; });
+  el.addEventListener("click", (e) => { if (e.target === el && down) fn(); down = false; });
+}
+// Re-rendering a form swaps out its fields; keep the one being typed in focused, caret included.
+function rerender(root, html) {
+  const a = document.activeElement;
+  let sel = null, pos = null;
+  if (a && a !== root && root.contains(a)) {
+    const d = a.id ? null : [...a.attributes].find((x) => x.name.startsWith("data-"));
+    sel = a.id ? "#" + CSS.escape(a.id) : d ? `[${d.name}="${CSS.escape(d.value)}"]` : null;
+    if (typeof a.selectionStart === "number") pos = [a.selectionStart, a.selectionEnd];
+  }
+  root.innerHTML = html;
+  const b = sel && root.querySelector(sel);
+  if (b) { b.focus({ preventScroll: true }); if (pos) { try { b.setSelectionRange(pos[0], pos[1]); } catch (e) { /* not a text field */ } } }
+}
 function armed(btn, label, fn) {
   if (btn.dataset.armed) { clearTimeout(btn._t); delete btn.dataset.armed; btn.innerHTML = btn._orig; fn(); return; }
   btn._orig = btn.innerHTML; btn.dataset.armed = "1"; btn.textContent = label;
@@ -1631,6 +1651,20 @@ function parseUploaded(text) {
   const key = (u) => { const seg = decodeURIComponent(u.split("?")[0].split("/").pop() || ""); const m = /(\d+)\.(png|jpe?g|webp|gif)$/i.exec(seg); return { seg, n: m ? Number(m[1]) : Infinity }; };
   return urls.map((u, k) => ({ url: u, ...key(u), k })).sort((a, b) => a.n - b.n || a.k - b.k).map((x) => ({ name: x.seg, url: x.url }));
 }
+// media_check_upload_status answers in prose: "Upload pending", "Upload link expired", "Upload completed! …"
+// with the file URLs, or an error line. Only a real "pending" may read as "still waiting".
+function uploadReply(t) {
+  t = String(t || "");
+  if (/completed/i.test(t)) return "completed";
+  if (/pending/i.test(t)) return "pending";
+  if (/expired/i.test(t)) return "expired";
+  return "error";
+}
+function uploadReplyErr(st, t) {
+  return st === "completed"
+    ? zErr("empty", "Zernio says the upload finished but sent no files. Press Get a new link and upload again.")
+    : zErr("check_failed", "Zernio couldn't check the upload: " + String(t).replace(/^\W+/, "").slice(0, 200));
+}
 function mapStatus(s, platform, ttMode, publishNow) {
   s = String(s || "").toLowerCase();
   if (/fail|error|reject/.test(s)) return "failed";
@@ -1653,9 +1687,12 @@ const Z = {
   },
   async uploadStatus(token) {
     const t = await zCall("media_check_upload_status", { token });
-    if (/expired/i.test(t) && !/completed/i.test(t)) throw zErr("expired", "The upload link expired. Press Get a new link.");
+    const st = uploadReply(t);
+    if (st === "expired") throw zErr("expired", "The upload link expired. Press Get a new link.");
+    if (st === "pending") return { files: [] };
     const files = parseUploaded(t);
-    return { files: /pending/i.test(t) && !files.length ? [] : files };
+    if (!files.length) throw uploadReplyErr(st, t);
+    return { files };
   },
   async createPost(body) {
     const t = await zCall("call_tool", { name: "posts_create_post", arguments: body }, { write: true });
@@ -1828,7 +1865,7 @@ async function checkUpload() {
   } catch (e) {
     WZ.up.err = (e && e.message) || "Couldn't check the upload.";
     if (e && e.code === "expired") { WZ.up.url = null; WZ.up.token = null; }
-    if (!(e && e.code === "server_unavailable")) stopPoll();
+    if (!(e && (e.code === "server_unavailable" || e.code === "check_failed"))) stopPoll();
   }
   if (WZ.step === 2) renderWizard();
 }
@@ -1901,7 +1938,7 @@ const V_CAP = 2200;
 const VZ = { ig: true, tt: true, igFeed: true, ttMode: "direct", ttComment: true, ttDuet: true, ttStitch: true };
 function resetVideo(keepPrefs) {
   const t = new Date(Date.now() + 86400000); t.setHours(18, 0, 0, 0); const lp = localParts(t.getTime());
-  Object.assign(VZ, { token: null, url: null, opened: false, fetching: false, err: null, files: [], pick: 0, coverSec: "", localUrl: null, localName: "",
+  Object.assign(VZ, { token: null, url: null, opened: false, fetching: false, checking: false, manual: false, checkedAt: 0, err: null, files: [], pick: 0, coverSec: "", localUrl: null, localName: "",
     caption: "", ttConsent: false, when: "now", date: lp.date, time: lp.time, busy: false, dm: newDm() });
   if (!keepPrefs) Object.assign(VZ, { ig: true, tt: true, igFeed: true, ttMode: "direct", ttComment: true, ttDuet: true, ttStitch: true });
 }
@@ -1945,7 +1982,7 @@ function renderVLeft() {
     : `<button class="btn sm" id="vGetLink"${VZ.fetching ? " disabled" : ""}>${VZ.fetching ? "Getting link…" : "Get upload link"}</button>`;
   L += `<div class="upsteps">
     <div class="upstep${VZ.opened || f ? " done" : ""}"><span class="n">${VZ.opened || f ? "✓" : "1"}</span><span class="t">Open the Zernio upload page and drop in your video. MP4 or MOV, vertical 9:16, 3 seconds to 10 minutes.</span>${upBtn}</div>
-    <div class="upstep${f ? " done" : ""}"><span class="n">${f ? "✓" : "2"}</span><span class="t">${f ? "Video received." : VZ.token ? "Waiting for your upload… this checks every few seconds." : "Waiting for the upload page."}</span><button class="btn sm ghost" id="vCheck"${VZ.token ? "" : " disabled"}>Check now</button></div>
+    <div class="upstep${f ? " done" : ""}"><span class="n">${f ? "✓" : "2"}</span><span class="t" id="vUpStatus">${esc(vStatusText())}</span><button class="btn sm ghost" id="vCheck"${VZ.token && !VZ.checking ? "" : " disabled"}>${VZ.checking && VZ.manual ? "Checking…" : "Check now"}</button></div>
   </div>`;
   if (VZ.files.length > 1) L += `<p class="hint">You uploaded ${VZ.files.length} files. Pick the one to post:</p>` + VZ.files.map((x, k) => `<label class="vfile"><input type="radio" name="vpick" value="${k}"${k === VZ.pick ? " checked" : ""}><span class="nm" dir="auto">${esc(x.name)}</span></label>`).join("");
   else if (f) L += `<div class="vfile"><span aria-hidden="true">▶</span><span class="nm" dir="auto">${esc(f.name)}</span></div>`;
@@ -1998,37 +2035,64 @@ async function enterVideo() {
   renderVideo();
   if (Z.state !== "ok" && Z.state !== "loading") await loadAccounts();
   if (Z.state !== "needs_ok" && !VZ.token && !VZ.fetching && !vFile()) vGetLink();
+  else vResume();
 }
 async function vGetLink() {
   if (VZ.fetching) return;
   VZ.fetching = true; VZ.err = null; if (S.view === "video") renderVLeft();
-  try { const r = await Z.uploadLink(); Object.assign(VZ, { url: r.url, token: r.token, files: [], pick: 0, opened: false }); }
+  try { const r = await Z.uploadLink(); Object.assign(VZ, { url: r.url, token: r.token, files: [], pick: 0, opened: false, checkedAt: 0 }); vStartPoll(); }
   catch (e) { VZ.err = (e && e.message) || "Couldn't get an upload link."; }
   VZ.fetching = false; if (S.view === "video") renderVLeft();
+}
+function vStatusText() {
+  if (vFile()) return "Video received.";
+  if (!VZ.token) return "Waiting for the upload page.";
+  if (!VZ.checkedAt) return "Waiting for your upload… this checks every few seconds.";
+  const at = new Date(VZ.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return `Not received yet (checked ${at}). Wait until the Zernio page says Upload Complete, then it shows up here.`;
+}
+// Patch the status line in place: re-rendering the panel would reset the cover-frame preview.
+function vPaintStatus() {
+  const s = $("#vUpStatus"), b = $("#vCheck");
+  if (s) s.textContent = vStatusText();
+  if (b) { b.disabled = !VZ.token || VZ.checking; b.textContent = VZ.checking && VZ.manual ? "Checking…" : "Check now"; }
 }
 let vPollT = null, vPollUntil = 0;
 function vStopPoll() { clearInterval(vPollT); vPollT = null; }
 function vStartPoll() {
-  vStopPoll(); vPollUntil = Date.now() + 15 * 60000;
+  vStopPoll(); vPollUntil = Date.now() + 30 * 60000;
   vPollT = setInterval(() => { if (Date.now() > vPollUntil || S.view !== "video") { vStopPoll(); return; } if (!document.hidden) vCheck(); }, 5000);
 }
-async function vCheck() {
+async function vCheck(manual) {
   if (!VZ.token) { vStopPoll(); return; }
-  const before = JSON.stringify([VZ.files, VZ.err, VZ.token]);
+  if (manual) { VZ.manual = true; if (!vPollT && !vFile()) vStartPoll(); }
+  if (VZ.checking) { vPaintStatus(); return; }
+  const tok = VZ.token, before = JSON.stringify([VZ.files, VZ.err, VZ.token]);
+  VZ.checking = true; vPaintStatus();
   try {
-    const t = await zCall("media_check_upload_status", { token: VZ.token });
-    if (/expired/i.test(t) && !/completed/i.test(t)) throw zErr("expired", "The upload link expired. Get a new link and upload again.");
-    const files = /pending/i.test(t) ? [] : parseUploadedVideos(t);
-    if (files.length) { VZ.files = files; VZ.pick = Math.min(VZ.pick, files.length - 1); vStopPoll(); }
-    VZ.err = null;
+    const t = await zCall("media_check_upload_status", { token: tok });
+    if (tok !== VZ.token) return; // a new link was made meanwhile; this answer is for the old one
+    const st = uploadReply(t);
+    if (st === "expired") throw zErr("expired", "The upload link expired. Get a new link and upload again.");
+    if (st !== "pending") {
+      const files = parseUploadedVideos(t);
+      if (!files.length) throw uploadReplyErr(st, t);
+      VZ.files = files; VZ.pick = Math.min(VZ.pick, files.length - 1); vStopPoll();
+    }
+    VZ.err = null; VZ.checkedAt = Date.now();
   } catch (e) {
+    if (tok !== VZ.token) return;
     VZ.err = (e && e.message) || "Couldn't check the upload.";
     if (e && e.code === "expired") { VZ.url = null; VZ.token = null; }
-    if (!(e && e.code === "server_unavailable")) vStopPoll();
-  }
-  if (S.view === "video" && before !== JSON.stringify([VZ.files, VZ.err, VZ.token])) renderVLeft();
+    if (!(e && (e.code === "server_unavailable" || e.code === "check_failed"))) vStopPoll();
+  } finally { VZ.checking = false; VZ.manual = false; }
+  if (S.view !== "video") return;
+  if (before !== JSON.stringify([VZ.files, VZ.err, VZ.token])) renderVLeft(); else vPaintStatus();
 }
-document.addEventListener("visibilitychange", () => { if (!document.hidden && S.view === "video" && VZ.token && !vFile()) { vCheck(); if (!vPollT) vStartPoll(); } });
+// Coming back from the Zernio tab (browser) or window (desktop app) checks right away.
+function vResume() { if (!document.hidden && S.view === "video" && VZ.token && !vFile()) { vCheck(); if (!vPollT) vStartPoll(); } }
+document.addEventListener("visibilitychange", vResume);
+window.addEventListener("focus", vResume);
 function buildVideoBody(file, publishNow) {
   const ms = VZ.coverSec !== "" && !isNaN(parseFloat(VZ.coverSec)) ? Math.max(0, Math.round(parseFloat(VZ.coverSec) * 1000)) : null;
   const platforms = [];
@@ -2122,7 +2186,7 @@ async function fuLoad() {
     if (S.view === "auto") renderAuto();
     const F = AU.F;
     if (F && !F.fuSeen && (FU.loaded || FU.err || FU.perm === "prompt" || FU.perm === "denied")) {
-      if (FU.loaded) Object.assign(F, fuFields(F.id), { fuSeen: true });
+      if (FU.loaded) Object.assign(F, fuFields(F.id || F.dupOf), { fuSeen: true }, F.id ? null : { fuHad: false });
       renderAuEditor();
     }
   }
@@ -2197,7 +2261,7 @@ function renderAuto() {
       ${btns ? `<div>${btns}</div>` : ""}
       ${fuLine}
       ${stats ? `<div class="stats">${stats}</div>` : ""}
-      <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-au-edit="${esc(id)}">Edit</button><button class="btn sm ghost" data-au-logs="${esc(id)}">Who got it</button><button class="btn sm ghost" data-au-del="${esc(id)}">Delete</button></div>
+      <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-au-edit="${esc(id)}">Edit</button><button class="btn sm ghost" data-au-dup="${esc(id)}">Duplicate</button><button class="btn sm ghost" data-au-logs="${esc(id)}">Who got it</button><button class="btn sm ghost" data-au-del="${esc(id)}">Delete</button></div>
     </article>`;
   }).join("");
 }
@@ -2236,6 +2300,10 @@ function formFromAutomation(a) {
     gateMsg: (a.followGate && a.followGate.message) || GATE_STARTER.msg,
     gateBtn: (a.followGate && a.followGate.buttonLabel) || GATE_STARTER.btn,
     gateNot: (a.followGate && a.followGate.notFollowingMessage) || GATE_STARTER.not });
+}
+// A duplicate opens as a new, unsaved automation (second message included): nothing goes live until Save.
+function dupAuForm(a) {
+  return Object.assign(formFromAutomation(a), { id: null, dupOf: auId(a), dupName: a.name || "", name: a.name ? `${a.name} (copy)` : "", gateHad: false, fuHad: false });
 }
 const auGated = (a) => !!(a.audience && a.audience.followerStatus === "follower");
 function openAuEditor(form) {
@@ -2295,9 +2363,10 @@ function auJumpToProblem() {
 }
 function renderAuEditor() {
   const F = AU.F; if (!F) return;
-  $("#auEdTitle").textContent = F.id ? "Edit automation" : "New automation";
+  $("#auEdTitle").textContent = F.id ? "Edit automation" : F.dupOf ? "Duplicate automation" : "New automation";
   const postOpts = AU.posts ? AU.posts.map((p) => `<option value="${esc(p.id)}"${p.id === F.platformPostId ? " selected" : ""}>${esc(p.date ? new Date(p.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " · " : "")}${esc(p.title)}</option>`).join("") : "";
   let h = F.err ? `<div class="card bad"><p>${esc(F.err)}</p></div>` : "";
+  if (F.dupOf) h += `<div class="card soft"><p>Copy of <b dir="auto">${esc(F.dupName || "your automation")}</b>. Nothing is live until you save. Change the keyword or the post first, or both automations will DM the same people.</p></div>`;
   h += `<label class="field" for="auName"><span>Name <b>optional</b></span><input id="auName" class="input" dir="auto" value="${esc(F.name)}" placeholder="Leave empty and it's named after the keyword"></label>
   <div class="field"><span>When someone comments on</span>
     <div class="seg" role="group"><button data-au-target="any"${F.target === "any" ? ' class="on"' : ""}>Any post</button><button data-au-target="post"${F.target === "post" ? ' class="on"' : ""}>A specific post</button><button data-au-target="story"${F.target === "story" ? ' class="on"' : ""}>Story replies</button></div></div>`;
@@ -2331,7 +2400,7 @@ function renderAuEditor() {
     h += `</div>`;
   }
   if (fuShown(F)) h += fuBlockHTML(F);
-  $("#auEdBody").innerHTML = h;
+  rerender($("#auEdBody"), h);
   auEdFoot();
 }
 function fuBlockHTML(F) {
@@ -2667,7 +2736,7 @@ function renderTT() {
       ${reps[0] ? `<div class="dm" dir="auto">${esc(reps[0])}${reps.length > 1 ? `\n<span class="meta">+${reps.length - 1} more, picked at random</span>` : ""}</div>` : ""}
       <div class="stats"><span>Matched <b>${a.matched_count || 0}</b></span><span>Replied <b>${a.replied_count || 0}</b></span>${a.last_reply_at ? `<span>Last ${esc(ago(new Date(a.last_reply_at).getTime()))}</span>` : ""}</div>
       ${ttBackfillNote(a)}
-      <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-tt-edit="${esc(a.id)}">Edit</button><button class="btn sm ghost" data-tt-logs="${esc(a.id)}">Who got a reply</button><button class="btn sm ghost" data-tt-del="${esc(a.id)}">Delete</button></div>
+      <div class="row" style="flex-wrap:wrap"><button class="btn sm" data-tt-edit="${esc(a.id)}">Edit</button><button class="btn sm ghost" data-tt-dup="${esc(a.id)}">Duplicate</button><button class="btn sm ghost" data-tt-logs="${esc(a.id)}">Who got a reply</button><button class="btn sm ghost" data-tt-del="${esc(a.id)}">Delete</button></div>
     </article>`;
   }).join("");
 }
@@ -2677,6 +2746,10 @@ function newTTForm(preset) {
 function ttFormFrom(a) {
   return newTTForm({ id: a.id, name: a.name || "", target: a.video_id ? "video" : "any", videoId: a.video_id || "", videoCaption: a.video_caption || "", videoCover: a.video_cover || "",
     keywords: (a.keywords || []).join(", "), replies: (a.replies || []).length ? a.replies.slice() : ttReplies().slice(), backfill: false });
+}
+// A duplicate opens as a new, unsaved automation: nothing goes live until Save.
+function dupTTForm(a) {
+  return Object.assign(ttFormFrom(a), { id: null, dupOf: a.id, dupName: a.name || "", name: a.name ? `${a.name} (copy)` : "" });
 }
 function ttProblems(F) {
   const out = [], add = (msg, sel) => out.push({ msg, sel });
@@ -2702,8 +2775,9 @@ async function ttLoadVideos() {
 }
 function renderTTEditor() {
   const F = TT.F; if (!F) return;
-  $("#ttEdTitle").textContent = F.id ? "Edit TikTok automation" : "New TikTok automation";
+  $("#ttEdTitle").textContent = F.id ? "Edit TikTok automation" : F.dupOf ? "Duplicate TikTok automation" : "New TikTok automation";
   let h = F.err ? `<div class="card bad"><p>${esc(F.err)}</p></div>` : "";
+  if (F.dupOf) h += `<div class="card soft"><p>Copy of <b dir="auto">${esc(F.dupName || "your automation")}</b>. Nothing is live until you save. Change the keyword or the video first, otherwise the two overlap.</p></div>`;
   h += `<label class="field" for="ttName"><span>Name <b>optional</b></span><input id="ttName" class="input" dir="auto" value="${esc(F.name)}" placeholder="Leave empty and it's named after the keyword"></label>
   <div class="field"><span>When someone comments on</span>
     <div class="seg" role="group"><button data-tt-target="any"${F.target === "any" ? ' class="on"' : ""}>Any video</button><button data-tt-target="video"${F.target === "video" ? ' class="on"' : ""}>A specific video</button></div></div>`;
@@ -2726,7 +2800,7 @@ function renderTTEditor() {
     <div class="row" style="flex-wrap:wrap"><button class="btn ghost sm" id="ttReplyAdd"${F.replies.length >= 6 ? " disabled" : ""}>+ Add reply</button><button class="btn ghost sm" id="ttReplyDefaults">Use my TikTok defaults</button><label class="check"><input type="checkbox" id="ttSaveDef"${F.saveDefault ? " checked" : ""}> Save these as my TikTok defaults</label></div>
   </div>
   <label class="check"><input type="checkbox" id="ttBackfill"${F.backfill ? " checked" : ""}> Also reply to matching comments already on ${F.target === "video" ? "this video" : "my last 20 videos"} (skips ones you already answered)</label>`;
-  $("#ttEdBody").innerHTML = h;
+  rerender($("#ttEdBody"), h);
   ttEdFoot();
 }
 function ttEdFoot() {
@@ -3170,7 +3244,7 @@ function bind() {
   // post wizard
   $("#postBtn").addEventListener("click", openWizard);
   $("#wizClose").addEventListener("click", closeWizard);
-  $("#wizard").addEventListener("click", (e) => { if (e.target.id === "wizard" && !WZ.busy) closeWizard(); });
+  onBackdrop($("#wizard"), () => { if (!WZ.busy) closeWizard(); });
   document.addEventListener("click", (e) => { if (e.target.closest(".zAllow")) { e.preventDefault(); zAllowFlow(); } });
   $("#wizBack").addEventListener("click", () => { if (WZ.busy) return; if (WZ.step === 1) closeWizard(); else { WZ.step--; renderWizard(); } });
   $("#wizNext").addEventListener("click", () => {
@@ -3209,8 +3283,8 @@ function bind() {
     if (e.target.closest("#vOpen")) { VZ.opened = true; vStartPoll(); setTimeout(renderVLeft, 50); return; }
     const b = e.target.closest("button"); if (!b) return;
     if (b.id === "vGetLink") vGetLink();
-    else if (b.id === "vNewLink") { VZ.files = []; VZ.pick = 0; VZ.token = null; VZ.url = null; vGetLink(); }
-    else if (b.id === "vCheck") vCheck();
+    else if (b.id === "vNewLink") { vStopPoll(); VZ.files = []; VZ.pick = 0; VZ.token = null; VZ.url = null; vGetLink(); }
+    else if (b.id === "vCheck") vCheck(true);
     else if (b.id === "vUseFrame") { const v = $("#vPrev"); if (v) { VZ.coverSec = String(Math.round(v.currentTime * 10) / 10); const c = $("#vCover"); if (c) c.value = VZ.coverSec; toast(`Cover set to ${VZ.coverSec} s`); } }
     else if (b.dataset.vwhen) { VZ.when = b.dataset.vwhen; renderVRight(); }
     else if (b.id === "vGo") submitVideo();
@@ -3247,6 +3321,7 @@ function bind() {
   $("#auBanner").addEventListener("click", (e) => { if (e.target.closest("#ttAllow")) ttAllow(); });
   $("#auList").addEventListener("click", (e) => {
     const ed = e.target.closest("[data-tt-edit]"); if (ed) { const a = TT.list.find((x) => x.id === ed.dataset.ttEdit); if (a) openTTEditor(ttFormFrom(a)); return; }
+    const dup = e.target.closest("[data-tt-dup]"); if (dup) { const a = TT.list.find((x) => x.id === dup.dataset.ttDup); if (a) openTTEditor(dupTTForm(a)); return; }
     const lg = e.target.closest("[data-tt-logs]"); if (lg) { ttShowLogs(lg.dataset.ttLogs); return; }
     const del = e.target.closest("[data-tt-del]"); if (del) armed(del, "Confirm delete", () => ttDelete(del.dataset.ttDel));
   });
@@ -3281,10 +3356,11 @@ function bind() {
   $("#ttEdSave").addEventListener("click", ttSave);
   const closeTTEd = () => { if ($("#ttEditor").hidden) return; if (TT.F && TT.F.busy) toast("Still saving in the background. It shows in the list once Supabase answers."); $("#ttEditor").hidden = true; TT.F = null; };
   $("#ttEdClose").addEventListener("click", closeTTEd);
-  $("#ttEditor").addEventListener("click", (e) => { if (e.target.id === "ttEditor") closeTTEd(); });
+  onBackdrop($("#ttEditor"), closeTTEd);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeTTEd(); });
   $("#auList").addEventListener("click", (e) => {
     const ed = e.target.closest("[data-au-edit]"); if (ed) { const a = AU.list.find((x) => auId(x) === ed.dataset.auEdit); if (a) openAuEditor(formFromAutomation(a)); return; }
+    const dup = e.target.closest("[data-au-dup]"); if (dup) { const a = AU.list.find((x) => auId(x) === dup.dataset.auDup); if (a) openAuEditor(dupAuForm(a)); return; }
     const lg = e.target.closest("[data-au-logs]"); if (lg) { auShowLogs(lg.dataset.auLogs); return; }
     const del = e.target.closest("[data-au-del]"); if (del) armed(del, "Confirm delete", () => auDelete(del.dataset.auDel));
   });
@@ -3334,7 +3410,7 @@ function bind() {
   $("#auEdSave").addEventListener("click", auSave);
   const closeAuEd = () => { if ($("#auEditor").hidden) return; if (AU.F && AU.F.busy) toast("Still saving in the background. It shows in the list once Zernio answers."); $("#auEditor").hidden = true; AU.F = null; };
   $("#auEdClose").addEventListener("click", closeAuEd);
-  $("#auEditor").addEventListener("click", (e) => { if (e.target.id === "auEditor") closeAuEd(); });
+  onBackdrop($("#auEditor"), closeAuEd);
   $("#auDefBody").addEventListener("input", (e) => { const k = e.target.dataset.def; if (k != null) defDraft[+k] = e.target.value; });
   $("#auDefBody").addEventListener("click", (e) => { const b = e.target.closest("[data-def-del]"); if (b) { defDraft.splice(+b.dataset.defDel, 1); renderAuDefaults(defDraft); } });
   $("#auDefAdd").addEventListener("click", () => { if (defDraft.length < 6) { defDraft.push(""); renderAuDefaults(defDraft); } });
@@ -3345,9 +3421,9 @@ function bind() {
     if (ok) { $("#auDefaults").hidden = true; toast(AUP.defFor === "tiktok" ? "TikTok default replies saved." : "Default replies saved. New automations will use them."); }
   });
   $("#auDefClose").addEventListener("click", () => { $("#auDefaults").hidden = true; });
-  $("#auDefaults").addEventListener("click", (e) => { if (e.target.id === "auDefaults") $("#auDefaults").hidden = true; });
+  onBackdrop($("#auDefaults"), () => { $("#auDefaults").hidden = true; });
   $("#auLogClose").addEventListener("click", () => { $("#auLogs").hidden = true; });
-  $("#auLogs").addEventListener("click", (e) => { if (e.target.id === "auLogs") $("#auLogs").hidden = true; });
+  onBackdrop($("#auLogs"), () => { $("#auLogs").hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key !== "Escape") return; closeAuEd(); $("#auDefaults").hidden = true; $("#auLogs").hidden = true; });
 
   // calendar, post detail, accounts
@@ -3357,10 +3433,11 @@ function bind() {
   $("#calGrid").addEventListener("click", (e) => { const b = e.target.closest("[data-post]"); if (b) openPostView(b.dataset.post); });
   $("#acctBtn").addEventListener("click", openAccounts);
   $("#acClose").addEventListener("click", () => { $("#accounts").hidden = true; });
-  $("#accounts").addEventListener("click", (e) => { if (e.target.id === "accounts") $("#accounts").hidden = true; else if (e.target.id === "acRefresh") loadAccounts(); });
+  onBackdrop($("#accounts"), () => { $("#accounts").hidden = true; });
+  $("#accounts").addEventListener("click", (e) => { if (e.target.id === "acRefresh") loadAccounts(); });
   $("#pvClose").addEventListener("click", () => { $("#postView").hidden = true; });
+  onBackdrop($("#postView"), () => { $("#postView").hidden = true; });
   $("#postView").addEventListener("click", (e) => {
-    if (e.target.id === "postView") { $("#postView").hidden = true; return; }
     const id = $("#pvBody").dataset.id;
     const o = e.target.closest("[data-pv-open]");
     if (o) { $("#postView").hidden = true; if (S.carousels.some((c) => c.id === o.dataset.pvOpen)) openCarousel(o.dataset.pvOpen); else toast("That carousel was deleted."); return; }
@@ -3375,7 +3452,7 @@ function bind() {
 
   // picker
   $("#pickClose").addEventListener("click", closePicker);
-  $("#picker").addEventListener("click", (e) => { if (e.target.id === "picker") closePicker(); });
+  onBackdrop($("#picker"), closePicker);
   $("#pickSet").addEventListener("change", renderPicker);
   $("#pickGrid").addEventListener("click", (e) => {
     const f = e.target.closest(".mcard"); const s = cur(); if (!f || !s) return;
