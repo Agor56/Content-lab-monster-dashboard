@@ -1,8 +1,20 @@
-# TikTok + YouTube comment auto-reply
+# Carousel Engine
+
+Anton's content dashboard: build carousels, post to Instagram, TikTok and YouTube, and run comment automations on all three. Posting and the Instagram automations go through Zernio; the TikTok and YouTube auto-replies and the Instagram second message run on Supabase.
+
+| | Instagram | TikTok | YouTube |
+|---|---|---|---|
+| Post carousels | ✓ | ✓ (photo post) | ✗ (YouTube has no image posts) |
+| Post videos | ✓ Reel | ✓ | ✓ (Short when vertical and up to 3 min) |
+| Comment automation | Comment → DM, plus optional public reply | Comment → public reply | Comment → public reply |
+| Runs on | Zernio's comment automations | Supabase `tiktok-autoreply` | Supabase `tiktok-autoreply` |
+| Extra | Second DM via Supabase `ig-followup` | | |
+
+## TikTok + YouTube comment auto-reply
 
 Someone comments a keyword on a TikTok or YouTube video, they get a public reply (TikTok within seconds, YouTube usually within a few minutes, since Zernio picks up YouTube comments with a delay). Runs 24/7, costs no Claude usage.
 
-## How it works
+### How it works
 
 TikTok or YouTube comment → Zernio `comment.received` webhook → Supabase Edge Function `tiktok-autoreply` → reply posted through Zernio → logged in `tiktok_replies`.
 
@@ -12,26 +24,26 @@ TikTok or YouTube comment → Zernio `comment.received` webhook → Supabase Edg
 - **Backfill:** "reply to past comments" sets `backfill_requested_at`; a pg_cron job calls the function every minute and replies to matching existing comments.
 - **Safety:** one reply per comment (unique `comment_id`), one per person per video, never your own comments or thread replies, 2.5–5 s between backfill replies.
 
-## Where things live
+### Where things live
 
 - Supabase project `kbudvqcnmejuoxyncvtq`: tables `tiktok_automations`, `tiktok_replies`, `tiktok_webhook_events`, `tiktok_config`; Edge Function `tiktok-autoreply` (JWT verification off, HMAC-signed webhook instead); Edge Function secret `ZERNIO_API_KEY`; cron job `tiktok-autoreply-sweep`.
 - Zernio webhook `tiktok-autoreply` → `https://kbudvqcnmejuoxyncvtq.supabase.co/functions/v1/tiktok-autoreply`.
 
-## Files
+### Files
 
 - `supabase/functions/tiktok-autoreply/index.ts`: the Edge Function source.
 - `supabase/sql/schema.sql`: the full backend setup (tables, indexes, triggers, lock-down, secrets generated in-DB, cron job). Re-runnable.
 - `app/carousel-engine.html`: the app page as published (the platform adds the doctype/head wrapper).
 
-## Limits
+### Limits
 
 TikTok doesn't allow automated DMs from non-business accounts. On a Business account only replies to user-started DMs are possible.
 
-# Instagram second message
+## Instagram second message
 
 An Instagram automation can send one extra DM a few minutes after the first one, to people who **DM the keyword**. Zernio still sends the first DM exactly as before; this is a separate side path, so if it fails the first DM and public replies are unaffected.
 
-## How it works
+### How it works
 
 Instagram DM → Zernio `message.received` webhook → Edge Function `ig-followup` → if the text matches an automation that has "Also answer people who DM the keyword" on and a second message saved, one row is scheduled in `ig_followup_sends` → the `ig-followup-sweep` pg_cron job (every minute) sends due rows through Zernio.
 
@@ -40,12 +52,12 @@ Instagram DM → Zernio `message.received` webhook → Edge Function `ig-followu
 - **Commenters** don't get the second message: Instagram allows only one private message per comment until the person writes back.
 - **Followers only:** the editor's "Only people who follow me" switch sets Zernio's own follow gate (`audience: {followerStatus: "follower", whenUnknown: "verify"}` + `followGate` texts). Followers get the DM; everyone else first gets a "follow me" message with a button, and the DM arrives once they tap while following. For these automations the second message only counts a sent message that starts like the automation's DM (not the "follow me" prompt), and waits up to 6 hours for it. Test with a non-following account before relying on it: since late August 2026 Instagram can refuse buttons to non-followers.
 
-## Where things live
+### Where things live
 
 - Supabase project `kbudvqcnmejuoxyncvtq`: tables `ig_followups`, `ig_followup_sends`, `ig_followup_events`, `ig_followup_config`; Edge Function `ig-followup` (JWT verification off, HMAC-signed webhook instead); reuses the `ZERNIO_API_KEY` secret; cron job `ig-followup-sweep`.
 - Zernio webhook `ig-followup` (`message.received`) → `https://kbudvqcnmejuoxyncvtq.supabase.co/functions/v1/ig-followup`. The function registers it itself on its first sweep.
 
-## Files
+### Files
 
 - `supabase/functions/ig-followup/index.ts`: the Edge Function source.
 - `supabase/sql/ig_followup_schema.sql`: tables, lock-down, secrets generated in-DB, cron job. Re-runnable.
