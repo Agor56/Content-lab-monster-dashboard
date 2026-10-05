@@ -10,6 +10,8 @@ Anton's content dashboard: build carousels, post to Instagram, TikTok and YouTub
 | Runs on | Zernio's comment automations | Supabase `tiktok-autoreply` | Supabase `tiktok-autoreply` |
 | Extra | Second DM via Supabase `ig-followup` | | |
 
+Rebuilding it from scratch (Zernio, Claude connectors, Supabase, page capabilities, where your content is stored): see [SETUP.md](SETUP.md).
+
 ## TikTok + YouTube comment auto-reply
 
 Someone comments a keyword on a TikTok or YouTube video, they get a public reply (TikTok within seconds, YouTube usually within a few minutes, since Zernio picks up YouTube comments with a delay). Runs 24/7, costs no Claude usage.
