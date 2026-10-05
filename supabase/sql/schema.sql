@@ -26,9 +26,14 @@ create table if not exists public.tiktok_automations (
   backfill_result       text,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  constraint tiktok_automations_keywords_nonempty check (cardinality(keywords) > 0),
+  -- No keywords = answer any comment, which is only allowed on one specific video.
+  constraint tiktok_automations_keywords_nonempty check (cardinality(keywords) > 0 or video_id is not null),
   constraint tiktok_automations_replies_nonempty  check (cardinality(replies) > 0)
 );
+-- Tables created before "any comment" existed still carry the old keywords rule.
+alter table public.tiktok_automations drop constraint if exists tiktok_automations_keywords_nonempty;
+alter table public.tiktok_automations add constraint tiktok_automations_keywords_nonempty
+  check (cardinality(keywords) > 0 or video_id is not null);
 
 create table if not exists public.tiktok_replies (
   id               uuid primary key default gen_random_uuid(),

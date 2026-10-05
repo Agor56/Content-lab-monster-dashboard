@@ -6,6 +6,7 @@
 //
 // Rules live in public.tiktok_automations, every attempt is logged in
 // public.tiktok_replies (comment_id is unique, so a comment is never answered twice).
+// JWT verification is off on purpose: callers authenticate with the HMAC signature or the sweep key.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -69,6 +70,11 @@ function matchKeyword(text: string, keywords: string[]) {
   for (const k of keywords) { const nk = norm(k); if (nk && t.includes(nk)) return k; }
   return null;
 }
+// A rule with no keywords answers any comment. The database only allows that on one specific video.
+function matchRule(text: string, a: Automation) {
+  if (!a.keywords.length) return a.video_id ? "(any comment)" : null;
+  return matchKeyword(text, a.keywords);
+}
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -88,9 +94,10 @@ async function loadAutomations(accountId: string, videoId: string | null): Promi
     .eq("account_id", accountId).eq("active", true);
   if (error) throw new Error("load automations: " + JSON.stringify(error));
   const rows = (data || []) as Automation[];
-  // Video-specific rules win over "any video" rules.
+  // Video-specific rules win over "any video" rules; on a video, keyword rules win over "any comment".
+  const rank = (a: Automation) => (a.video_id ? 0 : 2) + (a.keywords.length ? 0 : 1);
   return rows.filter((a) => a.video_id === null || a.video_id === videoId)
-    .sort((a, b) => (a.video_id ? 0 : 1) - (b.video_id ? 0 : 1));
+    .sort((a, b) => rank(a) - rank(b));
 }
 
 // ---------- core: decide + reply for one comment ----------
@@ -102,7 +109,7 @@ async function handleComment(c: Candidate, source: "webhook" | "backfill", rules
 
   const automations = rules ?? await loadAutomations(c.accountId, c.videoId);
   let hit: Automation | null = null, kw: string | null = null;
-  for (const a of automations) { kw = matchKeyword(c.text, a.keywords); if (kw) { hit = a; break; } }
+  for (const a of automations) { kw = matchRule(c.text, a); if (kw) { hit = a; break; } }
   if (!hit) return "skip:no-keyword";
 
   // Same person already got a reply on this video -> log as skipped, don't spam.

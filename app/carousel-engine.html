@@ -192,7 +192,9 @@ details[open]>summary::before{content:"▾"}
 .improve{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:var(--r-sm);background:var(--surface-2)}
 .improve .input{background:var(--surface)}
 .stage{position:sticky;top:76px;background:var(--stage);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
-.stage-top{width:100%;display:flex;justify-content:space-between;align-items:center}
+.stage-top{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.newcar{flex:0 0 auto}
+.newcar svg{width:15px;height:15px;flex:0 0 auto}
 .canvas-box{position:relative;flex:0 1 auto;width:min(100%,480px,max(240px,calc((100vh - 370px) * .8)));aspect-ratio:4/5;max-width:100%}
 .textbar{width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 12px;padding:6px 8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-xs)}
 .textbar .switch{padding:6px 10px;white-space:nowrap}
@@ -556,7 +558,7 @@ details[open]>summary::before{content:"▾"}
   <section class="stage" aria-label="Slide preview">
     <div class="stage-top">
       <input id="titleIn" class="title-in" dir="auto" aria-label="Carousel name" placeholder="Name this carousel">
-      <button id="newCarBtn" class="btn ghost sm">+ New carousel</button>
+      <button id="newCarBtn" class="btn primary sm newcar"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>New carousel</button>
     </div>
     <div class="textbar" role="group" aria-label="Text size and position">
       <label class="switch" for="applyAllChk"><input type="checkbox" id="applyAllChk" role="switch"><span class="knob" aria-hidden="true"></span><span>Apply to all slides</span></label>
@@ -1182,10 +1184,21 @@ function parseCopy(raw) {
 }
 
 /* ---------- studio actions ---------- */
+// Before switching carousels: write unsaved edits straight to the db (save() would drop them if one is
+// already in flight) and release the text boxes, since renderLeft skips whichever one has focus.
+function leaveCurrent() {
+  if (S.editing) endEdit();
+  const a = document.activeElement; if (a && a.closest && a.closest("input,textarea")) a.blur();
+  clearTimeout(saveT);
+  if (S.dirty && S.cur && S.db && !isEmptyCarousel(S.cur)) {
+    const data = clone(S.cur); data.updatedAt = Date.now(); if (!data.createdAt) data.createdAt = data.updatedAt;
+    S.db.doc("carousels/" + data.id).set(data).catch(dbErr);
+  }
+}
 function openCarousel(id) {
   const found = S.carousels.find((c) => c.id === id);
   if (!found) return;
-  if (S.dirty) save();
+  leaveCurrent();
   S.cur = normalize(clone(found)); S.idx = 0; S.prevCopy = null; S.dirty = false;
   saveState("saved", "Saved");
   $("#undoBtn").hidden = true;
@@ -1193,10 +1206,12 @@ function openCarousel(id) {
   go("studio"); renderStudio();
 }
 function newCarousel() {
-  if (S.dirty) save();
-  S.cur = blankCarousel(); S.idx = 0; S.dirty = false;
+  leaveCurrent();
+  S.cur = blankCarousel(); S.idx = 0; S.prevCopy = null; S.dirty = false;
+  $("#undoBtn").hidden = true; $("#improveHint").value = "";
   go("studio"); renderStudio(); $("#copyIn").focus();
   saveState("idle", "Nothing to save");
+  toast("New carousel started");
 }
 function buildSlides() {
   const c = S.cur; if (!c) return;
@@ -2204,7 +2219,9 @@ function fuFields(id) {
   return r ? { fuOn: !!r.active, fuMsg: r.message || "", fuLink: r.link || "", fuDelay: String(r.delay_minutes || 10), fuHad: true }
     : { fuOn: false, fuMsg: "", fuLink: "", fuDelay: "10", fuHad: false };
 }
-const fuShown = (F) => F.target !== "story" && F.alsoDm;
+const fuShown = (F) => F.target !== "story" && F.alsoDm && !auAny(F);
+// "Any comment" (no keywords) is only allowed on one specific post, never account-wide.
+const auAny = (F) => !!F.anyComment && F.target === "post";
 async function auPosts() {
   if (AU.posts) return AU.posts;
   const m = await auMeta();
@@ -2222,7 +2239,7 @@ function auStats(a) {
   const st = a.stats || {};
   const pick = (...ks) => { for (const k of ks) if (typeof st[k] === "number") return st[k]; for (const k of ks) if (typeof a[k] === "number") return a[k]; return null; };
   const out = [];
-  const t = pick("totalTriggered", "triggered", "triggers"), sent = pick("totalSent", "dmsSent", "sent"), fail = pick("totalFailed", "failed"), cl = pick("linkClicks", "clicks", "totalClicks");
+  const t = pick("totalTriggered", "triggered", "triggers"), sent = pick("totalSent", "dmsSent", "sent"), fail = pick("totalFailed", "dmsFailed", "failed"), cl = pick("linkClicks", "clicks", "totalClicks");
   if (t != null) out.push(["Triggered", t]); if (sent != null) out.push(["DMs sent", sent]); if (fail) out.push(["Failed", fail]); if (cl != null) out.push(["Link clicks", cl]);
   return out;
 }
@@ -2285,14 +2302,15 @@ function detectKeyword(caption) {
 }
 const GATE_STARTER = { msg: "כדי לקבל את זה, תעקבו אחריי ותלחצו למטה 👇", btn: "עקבתי ✅", not: "נראה שעוד לא עקבת 🙂 תעקבו ותלחצו שוב" };
 function newAuForm(preset) {
-  const f = Object.assign({ id: null, name: "", target: "any", platformPostId: "", postTitle: "", keywords: "", matchMode: "word", typo: true, alsoDm: true,
+  const f = Object.assign({ id: null, name: "", target: "any", platformPostId: "", postTitle: "", keywords: "", anyComment: false, matchMode: "word", typo: true, alsoDm: true,
     dm: DM_STARTER, link: "", buttons: [], replyOn: true, replies: auReplies().slice(), track: true, saveDefault: false, busy: false, err: null,
     gateOn: false, gateHad: false, gateMsg: GATE_STARTER.msg, gateBtn: GATE_STARTER.btn, gateNot: GATE_STARTER.not }, preset || {});
   return Object.assign(f, fuFields(f.id), { fuSeen: FU.loaded });
 }
 function formFromAutomation(a) {
   const all = [a.commentReply, ...(a.commentReplyVariations || [])].filter(Boolean);
-  return newAuForm({ id: auId(a), name: a.name || "", target: a.trigger === "story_reply" ? "story" : (a.platformPostId || a.postId) ? "post" : "any",
+  const target = a.trigger === "story_reply" ? "story" : (a.platformPostId || a.postId) ? "post" : "any";
+  return newAuForm({ id: auId(a), name: a.name || "", target, anyComment: target === "post" && !(a.keywords || []).length,
     platformPostId: a.platformPostId || "", postTitle: a.postTitle || "", keywords: (a.keywords || []).join(", "), matchMode: a.matchMode || "contains",
     typo: !!a.typoTolerance, alsoDm: !!a.alsoMatchInDms, dm: a.dmMessage || "", link: "", buttons: (a.buttons || []).filter((b) => b.type === "url").map((b) => ({ title: b.title || "", url: b.url || "" })),
     replyOn: all.length > 0, replies: all.length ? all : auReplies().slice(), track: a.linkTracking !== false,
@@ -2322,7 +2340,7 @@ function auProblemList(F) {
   const out = [], kws = F.keywords.split(/[,\n]/).map((k) => k.trim()).filter(Boolean);
   const add = (msg, sel) => out.push({ msg, sel });
   if (F.target === "post" && !F.platformPostId) add("Pick the post.", "#auPost");
-  if (!kws.length && F.alsoDm && F.target !== "story") add("Add a keyword, or untick \"Also answer people who DM the keyword\".", "#auKw");
+  if (!kws.length && !auAny(F) && F.target !== "story") add(F.target === "post" ? "Add a keyword, or set Trigger on to \"Any comment\"." : "Add a keyword. To answer every comment, pick \"A specific post\" first.", "#auKw");
   if (!F.dm.trim()) add("Write the DM.", "#auDm");
   if (F.link.trim() && !okUrl(F.link)) add("That link doesn't look right. Paste the full link.", "#auLink");
   F.buttons.forEach((b, k) => {
@@ -2349,7 +2367,7 @@ function auProblemList(F) {
 }
 const auFormProblems = (F) => auProblemList(F).map((x) => x.msg);
 function auAutoName(F) {
-  const kws = F.keywords.split(/[,\n]/).map((k) => k.trim()).filter(Boolean);
+  const kws = auAny(F) ? [] : F.keywords.split(/[,\n]/).map((k) => k.trim()).filter(Boolean);
   const where = F.target === "story" ? "Stories" : F.target === "post" ? (F.postTitle || "Post").slice(0, 30) : "Any post";
   return `${kws[0] || "Any comment"} → DM · ${where}`;
 }
@@ -2372,10 +2390,12 @@ function renderAuEditor() {
     <div class="seg" role="group"><button data-au-target="any"${F.target === "any" ? ' class="on"' : ""}>Any post</button><button data-au-target="post"${F.target === "post" ? ' class="on"' : ""}>A specific post</button><button data-au-target="story"${F.target === "story" ? ' class="on"' : ""}>Story replies</button></div></div>`;
   if (F.target === "post") h += AU.postsErr ? `<div class="card bad"><p>${esc(AU.postsErr)}</p></div>` : !AU.posts ? `<p class="hint">Loading your recent posts…</p>`
     : `<label class="field" for="auPost"><span>Post</span><select id="auPost" class="input" dir="auto"><option value="">Pick a post…</option>${postOpts}${F.platformPostId && !AU.posts.some((p) => p.id === F.platformPostId) ? `<option value="${esc(F.platformPostId)}" selected>${esc(F.postTitle || F.platformPostId)}</option>` : ""}</select></label>`;
-  h += `<div class="grid2"><label class="field" for="auKw"><span>Keywords <b>comma separated</b></span><input id="auKw" class="input" dir="auto" value="${esc(F.keywords)}" placeholder="FAST, פאסט"></label>
+  if (F.target === "post") h += `<div class="field"><span>Trigger on</span><div class="seg" role="group"><button data-au-any="0"${auAny(F) ? "" : ' class="on"'}>A keyword</button><button data-au-any="1"${auAny(F) ? ' class="on"' : ""}>Any comment</button></div></div>`;
+  if (auAny(F)) h += `<p class="hint">Everyone who comments on this post gets the DM, once per person. Instagram doesn't allow DMs to replies inside a comment thread.</p>`;
+  else h += `<div class="grid2"><label class="field" for="auKw"><span>Keywords <b>comma separated</b></span><input id="auKw" class="input" dir="auto" value="${esc(F.keywords)}" placeholder="FAST, פאסט"></label>
     <label class="field" for="auMatch"><span>Match</span><select id="auMatch" class="input"><option value="word"${F.matchMode === "word" ? " selected" : ""}>The word appears in the comment</option><option value="exact"${F.matchMode === "exact" ? " selected" : ""}>The comment is exactly the word</option><option value="contains"${F.matchMode === "contains" ? " selected" : ""}>Anywhere, even inside other words</option></select></label></div>
-  <div class="row" style="flex-wrap:wrap;gap:14px">${F.matchMode === "word" ? `<label class="check"><input type="checkbox" id="auTypo"${F.typo ? " checked" : ""}> Catch small typos</label>` : ""}${F.target !== "story" ? `<label class="check"><input type="checkbox" id="auAlsoDm"${F.alsoDm ? " checked" : ""}> Also answer people who DM the keyword</label>` : ""}</div>
-  <label class="field" for="auDm"><span>The DM <b class="counter${F.buttons.length && F.dm.length > DM_CAP ? " over" : ""}" id="auDmN">${F.dm.length} / ${DM_CAP}</b></span><textarea id="auDm" class="input" rows="4" dir="auto">${esc(F.dm)}</textarea></label>
+  <div class="row" style="flex-wrap:wrap;gap:14px">${F.matchMode === "word" ? `<label class="check"><input type="checkbox" id="auTypo"${F.typo ? " checked" : ""}> Catch small typos</label>` : ""}${F.target !== "story" ? `<label class="check"><input type="checkbox" id="auAlsoDm"${F.alsoDm ? " checked" : ""}> Also answer people who DM the keyword</label>` : ""}</div>`;
+  h += `<label class="field" for="auDm"><span>The DM <b class="counter${F.buttons.length && F.dm.length > DM_CAP ? " over" : ""}" id="auDmN">${F.dm.length} / ${DM_CAP}</b></span><textarea id="auDm" class="input" rows="4" dir="auto">${esc(F.dm)}</textarea></label>
   <label class="field" for="auLink"><span>Link to send <b>goes inside the message, reaches everyone</b></span><input id="auLink" class="input" dir="ltr" placeholder="https://…" value="${esc(F.link)}"></label>
   <div class="field"><span>Link buttons <b>only reach people who follow you</b></span>
     <p class="hint" style="margin-top:-2px">Since late August 2026 Instagram refuses buttons to commenters who don't follow you, and that uses up the one DM allowed per comment. Leave this empty unless the post is for followers only.</p>
@@ -2430,7 +2450,7 @@ function auEdFoot() {
   const b = $("#auEdSave"); b.disabled = !!F.busy; b.textContent = F.busy ? "Saving…" : F.id ? "Save changes" : "Save and go live";
 }
 function auArgs(F, meta, extra) {
-  const kws = [...new Set(F.keywords.split(/[,\n]/).map((k) => k.trim()).filter(Boolean))];
+  const kws = auAny(F) ? [] : [...new Set(F.keywords.split(/[,\n]/).map((k) => k.trim()).filter(Boolean))];
   const btns = F.buttons.filter((b) => b.title.trim() && b.url.trim()).map((b) => ({ type: "url", title: b.title.trim().slice(0, BTN_CAP), url: normUrl(b.url) }));
   const reps = F.replyOn && F.target !== "story" ? F.replies.map((r) => r.trim()).filter(Boolean) : [];
   const a = {
@@ -2727,7 +2747,7 @@ function renderTT() {
   if (ttShowing() && !TT.list.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>No TikTok automations yet.</b><br>Press New automation, pick a video or "Any video", and type the keyword people comment.</div>`; return; }
   g.innerHTML = TT.list.map((a) => {
     const on = !!a.active;
-    const kws = (a.keywords || []).map((k) => `<span class="kw" dir="auto">${esc(k)}</span>`).join("");
+    const kws = (a.keywords || []).length ? a.keywords.map((k) => `<span class="kw" dir="auto">${esc(k)}</span>`).join("") : `<span class="meta">Any comment</span>`;
     const reps = a.replies || [];
     return `<article class="aucard${on ? "" : " off"}">
       <div class="top"><span class="badge tt" aria-hidden="true">TT</span><b dir="auto">${esc(a.name || "TikTok automation")}</b><label class="switch" title="${on ? "Live" : "Paused"}"><input type="checkbox" data-tt-toggle="${esc(a.id)}"${on ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>${on ? "Live" : "Paused"}</span></label></div>
@@ -2740,12 +2760,14 @@ function renderTT() {
     </article>`;
   }).join("");
 }
+// "Any comment" (no keywords) is only allowed on one specific video, never on every video.
+const ttAny = (F) => !!F.anyComment && F.target === "video";
 function newTTForm(preset) {
-  return Object.assign({ id: null, name: "", target: "any", videoId: "", videoCaption: "", videoCover: "", keywords: "", replies: ttReplies().slice(), backfill: true, saveDefault: false, busy: false, err: null }, preset || {});
+  return Object.assign({ id: null, name: "", target: "any", videoId: "", videoCaption: "", videoCover: "", keywords: "", anyComment: false, replies: ttReplies().slice(), backfill: true, saveDefault: false, busy: false, err: null }, preset || {});
 }
 function ttFormFrom(a) {
   return newTTForm({ id: a.id, name: a.name || "", target: a.video_id ? "video" : "any", videoId: a.video_id || "", videoCaption: a.video_caption || "", videoCover: a.video_cover || "",
-    keywords: (a.keywords || []).join(", "), replies: (a.replies || []).length ? a.replies.slice() : ttReplies().slice(), backfill: false });
+    keywords: (a.keywords || []).join(", "), anyComment: !!a.video_id && !(a.keywords || []).length, replies: (a.replies || []).length ? a.replies.slice() : ttReplies().slice(), backfill: false });
 }
 // A duplicate opens as a new, unsaved automation: nothing goes live until Save.
 function dupTTForm(a) {
@@ -2755,7 +2777,7 @@ function ttProblems(F) {
   const out = [], add = (msg, sel) => out.push({ msg, sel });
   const kws = F.keywords.split(/[,\n]/).map((k) => k.trim()).filter(Boolean);
   if (F.target === "video" && !F.videoId) add("Pick the video.", "#ttVideo");
-  if (!kws.length) add("Add at least one keyword.", "#ttKw");
+  if (!kws.length && !ttAny(F)) add(F.target === "video" ? "Add a keyword, or set Trigger on to \"Any comment\"." : "Add at least one keyword.", "#ttKw");
   if (!F.replies.some((r) => r.trim())) add("Write at least one reply.", "[data-tt-reply]");
   if (F.replies.some((r) => r.length > 150)) add("Keep each reply under 150 characters. TikTok cuts long replies.", "[data-tt-reply]");
   if (!acctFor("tiktok")) add(Z.state === "ok" ? "TikTok isn't connected in Zernio." : "Checking your TikTok account in Zernio…", "#ttKw");
@@ -2791,15 +2813,17 @@ function renderTTEditor() {
       if (F.videoCover) h += `<div class="imgrow"><div class="imgthumb" style="background-image:url(${esc(F.videoCover)})"></div><span class="meta" dir="auto">${esc(F.videoCaption)}</span></div>`;
     }
   }
-  h += `<label class="field" for="ttKw"><span>Keywords <b>comma separated</b></span><input id="ttKw" class="input" dir="auto" value="${esc(F.keywords)}" placeholder="design, דיזיין"></label>
-  <p class="hint" style="margin-top:-6px">Matches anywhere in the comment and ignores capital letters, so "Design pls 🙏" counts. Each person gets one reply per video.</p>
-  <div class="dmblock" style="border-style:solid;border-color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 45%,var(--surface))">
+  if (F.target === "video") h += `<div class="field"><span>Trigger on</span><div class="seg" role="group"><button data-tt-any="0"${ttAny(F) ? "" : ' class="on"'}>A keyword</button><button data-tt-any="1"${ttAny(F) ? ' class="on"' : ""}>Any comment</button></div></div>`;
+  if (ttAny(F)) h += `<p class="hint">Everyone who comments on this video gets a reply, once per person. Your own comments and replies inside threads are skipped.</p>`;
+  else h += `<label class="field" for="ttKw"><span>Keywords <b>comma separated</b></span><input id="ttKw" class="input" dir="auto" value="${esc(F.keywords)}" placeholder="design, דיזיין"></label>
+  <p class="hint" style="margin-top:-6px">Matches anywhere in the comment and ignores capital letters, so "Design pls 🙏" counts. Each person gets one reply per video.</p>`;
+  h += `<div class="dmblock" style="border-style:solid;border-color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 45%,var(--surface))">
     <span class="lbl" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Public reply under the comment</span>
     <p class="hint">One is picked at random each time, so it doesn't look like a bot. TikTok can't send DMs from a non-business account, so point people to your profile link.</p>
     ${F.replies.map((r, k) => `<div class="replyrow"><textarea class="input" rows="1" dir="auto" maxlength="150" data-tt-reply="${k}">${esc(r)}</textarea><button class="btn ghost sm" data-tt-reply-del="${k}" aria-label="Remove reply"${F.replies.length <= 1 ? " disabled" : ""}>✕</button></div>`).join("")}
     <div class="row" style="flex-wrap:wrap"><button class="btn ghost sm" id="ttReplyAdd"${F.replies.length >= 6 ? " disabled" : ""}>+ Add reply</button><button class="btn ghost sm" id="ttReplyDefaults">Use my TikTok defaults</button><label class="check"><input type="checkbox" id="ttSaveDef"${F.saveDefault ? " checked" : ""}> Save these as my TikTok defaults</label></div>
   </div>
-  <label class="check"><input type="checkbox" id="ttBackfill"${F.backfill ? " checked" : ""}> Also reply to matching comments already on ${F.target === "video" ? "this video" : "my last 20 videos"} (skips ones you already answered)</label>`;
+  <label class="check"><input type="checkbox" id="ttBackfill"${F.backfill ? " checked" : ""}> Also reply to ${ttAny(F) ? "everyone who already commented on this video" : `matching comments already on ${F.target === "video" ? "this video" : "my last 20 videos"}`} (skips ones you already answered)</label>`;
   rerender($("#ttEdBody"), h);
   ttEdFoot();
 }
@@ -2830,9 +2854,9 @@ async function ttSave() {
   F.busy = true; F.err = null; ttEdFoot();
   const slow = setTimeout(() => { if (F.busy && TT.F === F) { const n = $("#ttEdNote"); n.style.color = ""; n.textContent = "Waiting for Supabase… If Claude asks you to allow Supabase for this page, approve it."; } }, 3000);
   try {
-    const kws = [...new Set(F.keywords.split(/[,\n]/).map((k) => k.trim().toLowerCase()).filter(Boolean))];
+    const kws = ttAny(F) ? [] : [...new Set(F.keywords.split(/[,\n]/).map((k) => k.trim().toLowerCase()).filter(Boolean))];
     const reps = F.replies.map((r) => r.trim()).filter(Boolean).slice(0, 6);
-    const name = F.name.trim() || `${kws[0]} → reply · ${F.target === "video" ? (F.videoCaption || "Video").slice(0, 30) : "Any video"}`;
+    const name = F.name.trim() || `${kws[0] || "Any comment"} → reply · ${F.target === "video" ? (F.videoCaption || "Video").slice(0, 30) : "Any video"}`;
     const vid = F.target === "video" ? F.videoId : null;
     const vals = [name, vid, vid ? F.videoCaption : null, vid ? F.videoCover : null, kws, reps, !!F.backfill];
     if (F.id) {
@@ -3047,8 +3071,8 @@ function afterData() {
 }
 function syncCurrent() {
   if (!S.cur) {
-    if (S.carousels.length) { S.cur = normalize(clone(S.carousels[0])); S.idx = 0; ensureFonts(S.cur).then(draw); renderStudio(); }
-    else if (S.loaded.carousels && S.loaded.sets) { S.cur = blankCarousel(); renderStudio(); }
+    // Always open on a fresh carousel; saved ones are in My Carousels.
+    if (S.loaded.sets) { S.cur = blankCarousel(); renderStudio(); }
     return;
   }
   const remote = S.carousels.find((c) => c.id === S.cur.id);
@@ -3331,6 +3355,7 @@ function bind() {
     const F = TT.F; if (!F) return;
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.ttTarget) { F.target = b.dataset.ttTarget; renderTTEditor(); if (F.target === "video") ttLoadVideos(); }
+    else if (b.dataset.ttAny != null) { F.anyComment = b.dataset.ttAny === "1"; if (F.anyComment) F.backfill = false; renderTTEditor(); }
     else if (b.id === "ttReplyAdd") { F.replies.push(""); renderTTEditor(); }
     else if (b.dataset.ttReplyDel != null) { F.replies.splice(+b.dataset.ttReplyDel, 1); renderTTEditor(); }
     else if (b.id === "ttReplyDefaults") { F.replies = ttReplies().slice(); renderTTEditor(); }
@@ -3370,6 +3395,7 @@ function bind() {
     const F = AU.F; if (!F) return;
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.auTarget) { F.target = b.dataset.auTarget; renderAuEditor(); if (F.target === "post") loadPostsForEditor(); }
+    else if (b.dataset.auAny != null) { F.anyComment = b.dataset.auAny === "1"; renderAuEditor(); }
     else if (b.id === "auBtnAdd") { F.buttons.push({ title: "", url: "" }); renderAuEditor(); }
     else if (b.dataset.auBtnDel != null) { F.buttons.splice(+b.dataset.auBtnDel, 1); renderAuEditor(); }
     else if (b.id === "auReplyAdd") { F.replies.push(""); renderAuEditor(); }
