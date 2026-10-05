@@ -2319,7 +2319,7 @@ function newAuForm(preset) {
 function formFromAutomation(a) {
   const all = [a.commentReply, ...(a.commentReplyVariations || [])].filter(Boolean);
   const target = a.trigger === "story_reply" ? "story" : (a.platformPostId || a.postId) ? "post" : "any";
-  return newAuForm({ id: auId(a), name: a.name || "", target, anyComment: target === "post" && !(a.keywords || []).length,
+  return newAuForm({ id: auId(a), name: a.name || "", target, origTarget: target, origPostId: a.platformPostId || "", wasActive: auActive(a), anyComment: target === "post" && !(a.keywords || []).length,
     platformPostId: a.platformPostId || "", postTitle: a.postTitle || "", keywords: (a.keywords || []).join(", "), matchMode: a.matchMode || "contains",
     typo: !!a.typoTolerance, alsoDm: !!a.alsoMatchInDms, dm: a.dmMessage || "", link: "", buttons: (a.buttons || []).filter((b) => b.type === "url").map((b) => ({ title: b.title || "", url: b.url || "" })),
     replyOn: all.length > 0, replies: all.length ? all : auReplies().slice(), track: a.linkTracking !== false,
@@ -2333,6 +2333,8 @@ function dupAuForm(a) {
   return Object.assign(formFromAutomation(a), { id: null, dupOf: auId(a), dupName: a.name || "", name: a.name ? `${a.name} (copy)` : "", gateHad: false, fuHad: false });
 }
 const auGated = (a) => !!(a.audience && a.audience.followerStatus === "follower");
+// Zernio can't re-attach an automation to another post or trigger, so a move replaces it (auSave).
+const auMoved = (F) => !!F.id && (F.target !== F.origTarget || (F.target === "post" && F.platformPostId !== F.origPostId));
 function openAuEditor(form) {
   AU.F = form || newAuForm();
   $("#auEditor").hidden = false; renderAuEditor();
@@ -2399,6 +2401,7 @@ function renderAuEditor() {
     <div class="seg" role="group"><button data-au-target="any"${F.target === "any" ? ' class="on"' : ""}>Any post</button><button data-au-target="post"${F.target === "post" ? ' class="on"' : ""}>A specific post</button><button data-au-target="story"${F.target === "story" ? ' class="on"' : ""}>Story replies</button></div></div>`;
   if (F.target === "post") h += AU.postsErr ? `<div class="card bad"><p>${esc(AU.postsErr)}</p><div><button class="btn sm" id="auPostsReload" type="button">Try again</button></div></div>` : !AU.posts ? `<p class="hint">Loading your recent posts…</p>`
     : `<label class="field" for="auPost"><span>Post <button class="btn ghost sm" id="auPostsReload" type="button">Reload posts</button></span><select id="auPost" class="input" dir="auto"><option value="">Pick a post…</option>${postOpts}${F.platformPostId && !AU.posts.some((p) => p.id === F.platformPostId) ? `<option value="${esc(F.platformPostId)}" selected>${esc(F.postTitle || F.platformPostId)}</option>` : ""}</select></label>`;
+  if (auMoved(F)) h += `<div class="card soft"><p>Zernio can't move an automation, so saving creates a fresh one here and deletes the old one. Its stats start from zero, and people who already got the DM can get it again if they comment again.</p></div>`;
   if (F.target === "post") h += `<div class="field"><span>Trigger on</span><div class="seg" role="group"><button data-au-any="0"${auAny(F) ? "" : ' class="on"'}>A keyword</button><button data-au-any="1"${auAny(F) ? ' class="on"' : ""}>Any comment</button></div></div>`;
   if (auAny(F)) h += `<p class="hint">Everyone who comments on this post gets the DM, once per person. Instagram doesn't allow DMs to replies inside a comment thread.</p>`;
   else h += `<div class="grid2"><label class="field" for="auKw"><span>Keywords <b>comma separated</b></span><input id="auKw" class="input" dir="auto" value="${esc(F.keywords)}" placeholder="FAST, פאסט"></label>
@@ -2469,9 +2472,12 @@ function auArgs(F, meta, extra) {
     also_match_in_dms: F.target !== "story" && kws.length ? !!F.alsoDm : false,
   };
   if (F.id && !reps.length) { a.comment_reply = ""; a.comment_reply_variations = []; }
-  if (!F.id) Object.assign(a, { profile_id: meta.profileId, account_id: meta.accountId });
-  if (F.target === "post") { a.platform_post_id = F.platformPostId; a.post_title = F.postTitle || null; }
-  else if (!F.id) a.platform_post_id = null;
+  // Zernio's update call refuses the post fields, so only a new automation carries them (see auMoved).
+  if (!F.id) {
+    Object.assign(a, { profile_id: meta.profileId, account_id: meta.accountId });
+    a.platform_post_id = F.target === "post" ? F.platformPostId : null;
+    if (F.target === "post") a.post_title = F.postTitle || null;
+  }
   // Followers-only: known followers get the DM; everyone else first gets a tap-to-confirm "follow me" message.
   if (F.target !== "story" && F.gateOn) {
     a.audience = { followerStatus: "follower", whenUnknown: "verify" };
@@ -2493,21 +2499,36 @@ async function auSave() {
   const slow = setTimeout(() => { if (F.busy && AU.F === F) { const n = $("#auEdNote"); n.style.color = ""; n.textContent = "Waiting for Zernio… If Claude asks you to allow Zernio for this page, approve it."; } }, 3000);
   try {
     const meta = await auMeta();
-    const args = auArgs(F, meta);
-    let o;
-    if (F.id) { delete args.trigger; o = await zTool("comment_automations_update_comment_automation", Object.assign({ automation_id: F.id }, args)); }
-    else o = await zTool("comment_automations_create_comment_automation", args);
+    const moved = auMoved(F);
+    let o, id = F.id;
+    if (F.id && !moved) {
+      const args = auArgs(F, meta); delete args.trigger;
+      o = await zTool("comment_automations_update_comment_automation", Object.assign({ automation_id: F.id }, args));
+    } else o = await zTool("comment_automations_create_comment_automation", auArgs(Object.assign({}, F, { id: null }), meta));
     if (o && o.success === false) throw zErr("tool_error", o.error || o.message || "Zernio refused the automation.");
+    if (!F.id || moved) id = (o && o.automation && auId(o.automation)) || (o && auId(o)) || null;
+    const moveNote = moved ? await auRetire(F, id) : "";
     if (F.saveDefault && F.replyOn) await auSaveDefaults(F.replies);
-    const fuNote = await fuSave(F, F.id || (o && o.automation && auId(o.automation)) || (o && auId(o)) || null);
+    const fuNote = await fuSave(moved ? Object.assign({}, F, { fuHad: false }) : F, id);
     if (AU.F === F) { $("#auEditor").hidden = true; AU.F = null; }
-    toast((F.id ? "Automation updated" : "Automation is live") + fuNote);
+    toast((moved ? "Automation moved. Its stats start from zero." : F.id ? "Automation updated" : "Automation is live") + moveNote + fuNote);
     auLoad();
   } catch (e) {
     F.err = (e && e.message) || "Couldn't save the automation."; F.busy = false;
     if (AU.F === F) renderAuEditor(); else toast(F.err);
     if (e && e.code === "timeout") auLoad();
   } finally { clearTimeout(slow); }
+}
+// After a move: the replacement is live, so take the old automation down before both DM the same people.
+async function auRetire(F, newId) {
+  try { await zTool("comment_automations_delete_comment_automation", { automation_id: F.id }); }
+  catch (e) {
+    try { await zTool("comment_automations_update_comment_automation", { automation_id: F.id, is_active: false }); return " The old one couldn't be deleted, so it's paused. Delete it from the list."; }
+    catch (e2) { return " But the old one is still live. Pause or delete it, or both will DM the same people."; }
+  }
+  if (FU.map[F.id]) { try { await ifSql(`delete from public.ig_followups where automation_id = $1 returning automation_id`, [F.id], { write: true }); } catch (e) { /* leftovers are harmless */ } }
+  if (F.wasActive === false && newId) { try { await zTool("comment_automations_update_comment_automation", { automation_id: newId, is_active: false }); } catch (e) { return " It went live, though the old one was paused. Pause it from the list if you want it off."; } }
+  return "";
 }
 // Runs after Zernio saved the automation, so a failure here never undoes the automation itself.
 async function fuSave(F, id) {
