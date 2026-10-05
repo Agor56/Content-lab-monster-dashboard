@@ -2222,14 +2222,23 @@ function fuFields(id) {
 const fuShown = (F) => F.target !== "story" && F.alsoDm && !auAny(F);
 // "Any comment" (no keywords) is only allowed on one specific post, never account-wide.
 const auAny = (F) => !!F.anyComment && F.target === "post";
+const postTitle = (text) => (String(text || "").split("\n").map((l) => l.trim()).find(Boolean) || "(no caption)").slice(0, 70);
 async function auPosts() {
   if (AU.posts) return AU.posts;
   const m = await auMeta();
+  // Read straight from Instagram, so a post is pickable the minute it's live. Zernio's synced
+  // copy (posts_list_posts, source external) lags by a couple of hours; it's only the fallback.
+  let live = null;
+  try { const o = await zTool("accounts_get_account_posts", { account_id: m.accountId }); live = Array.isArray(o.posts) ? o.posts : null; }
+  catch (e) { /* fall back to the synced copy */ }
+  if (live && live.length) {
+    AU.posts = live.filter((p) => p.id).map((p) => ({ id: String(p.id), title: postTitle(p.message), date: p.createdTime, url: p.permalink }));
+    return AU.posts;
+  }
   const o = await zTool("posts_list_posts", { source: "external", platform: "instagram", account_id: m.accountId, limit: 15 });
   AU.posts = (o.posts || []).map((p) => {
     const pl = (p.platforms || []).find((x) => x.platform === "instagram") || {};
-    const first = String(p.content || "").split("\n").map((l) => l.trim()).find(Boolean) || "(no caption)";
-    return { id: pl.platformPostId, title: first.slice(0, 70), date: pl.publishedAt || p.scheduledFor, url: pl.platformPostUrl };
+    return { id: pl.platformPostId, title: postTitle(p.content), date: pl.publishedAt || p.scheduledFor, url: pl.platformPostUrl };
   }).filter((p) => p.id);
   return AU.posts;
 }
@@ -2388,8 +2397,8 @@ function renderAuEditor() {
   h += `<label class="field" for="auName"><span>Name <b>optional</b></span><input id="auName" class="input" dir="auto" value="${esc(F.name)}" placeholder="Leave empty and it's named after the keyword"></label>
   <div class="field"><span>When someone comments on</span>
     <div class="seg" role="group"><button data-au-target="any"${F.target === "any" ? ' class="on"' : ""}>Any post</button><button data-au-target="post"${F.target === "post" ? ' class="on"' : ""}>A specific post</button><button data-au-target="story"${F.target === "story" ? ' class="on"' : ""}>Story replies</button></div></div>`;
-  if (F.target === "post") h += AU.postsErr ? `<div class="card bad"><p>${esc(AU.postsErr)}</p></div>` : !AU.posts ? `<p class="hint">Loading your recent posts…</p>`
-    : `<label class="field" for="auPost"><span>Post</span><select id="auPost" class="input" dir="auto"><option value="">Pick a post…</option>${postOpts}${F.platformPostId && !AU.posts.some((p) => p.id === F.platformPostId) ? `<option value="${esc(F.platformPostId)}" selected>${esc(F.postTitle || F.platformPostId)}</option>` : ""}</select></label>`;
+  if (F.target === "post") h += AU.postsErr ? `<div class="card bad"><p>${esc(AU.postsErr)}</p><div><button class="btn sm" id="auPostsReload" type="button">Try again</button></div></div>` : !AU.posts ? `<p class="hint">Loading your recent posts…</p>`
+    : `<label class="field" for="auPost"><span>Post <button class="btn ghost sm" id="auPostsReload" type="button">Reload posts</button></span><select id="auPost" class="input" dir="auto"><option value="">Pick a post…</option>${postOpts}${F.platformPostId && !AU.posts.some((p) => p.id === F.platformPostId) ? `<option value="${esc(F.platformPostId)}" selected>${esc(F.postTitle || F.platformPostId)}</option>` : ""}</select></label>`;
   if (F.target === "post") h += `<div class="field"><span>Trigger on</span><div class="seg" role="group"><button data-au-any="0"${auAny(F) ? "" : ' class="on"'}>A keyword</button><button data-au-any="1"${auAny(F) ? ' class="on"' : ""}>Any comment</button></div></div>`;
   if (auAny(F)) h += `<p class="hint">Everyone who comments on this post gets the DM, once per person. Instagram doesn't allow DMs to replies inside a comment thread.</p>`;
   else h += `<div class="grid2"><label class="field" for="auKw"><span>Keywords <b>comma separated</b></span><input id="auKw" class="input" dir="auto" value="${esc(F.keywords)}" placeholder="FAST, פאסט"></label>
@@ -2804,12 +2813,12 @@ function renderTTEditor() {
   <div class="field"><span>When someone comments on</span>
     <div class="seg" role="group"><button data-tt-target="any"${F.target === "any" ? ' class="on"' : ""}>Any video</button><button data-tt-target="video"${F.target === "video" ? ' class="on"' : ""}>A specific video</button></div></div>`;
   if (F.target === "video") {
-    if (TT.videosErr) h += `<div class="card bad"><p>${esc(TT.videosErr)}</p></div>`;
+    if (TT.videosErr) h += `<div class="card bad"><p>${esc(TT.videosErr)}</p><div><button class="btn sm" id="ttVideosReload" type="button">Try again</button></div></div>`;
     else if (!TT.videos) h += `<p class="hint">Loading your recent TikToks…</p>`;
     else {
       const opts = TT.videos.map((v) => `<option value="${esc(v.id)}"${v.id === F.videoId ? " selected" : ""}>${esc(v.date ? new Date(v.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " · " : "")}${esc(v.title)} (${v.comments} comments)</option>`).join("");
       const extra = F.videoId && !TT.videos.some((v) => v.id === F.videoId) ? `<option value="${esc(F.videoId)}" selected>${esc(F.videoCaption || F.videoId)}</option>` : "";
-      h += `<label class="field" for="ttVideo"><span>Video</span><select id="ttVideo" class="input" dir="auto"><option value="">Pick a video…</option>${opts}${extra}</select></label>`;
+      h += `<label class="field" for="ttVideo"><span>Video <button class="btn ghost sm" id="ttVideosReload" type="button">Reload videos</button></span><select id="ttVideo" class="input" dir="auto"><option value="">Pick a video…</option>${opts}${extra}</select></label>`;
       if (F.videoCover) h += `<div class="imgrow"><div class="imgthumb" style="background-image:url(${esc(F.videoCover)})"></div><span class="meta" dir="auto">${esc(F.videoCaption)}</span></div>`;
     }
   }
@@ -3355,6 +3364,7 @@ function bind() {
     const F = TT.F; if (!F) return;
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.ttTarget) { F.target = b.dataset.ttTarget; renderTTEditor(); if (F.target === "video") ttLoadVideos(); }
+    else if (b.id === "ttVideosReload") { TT.videos = null; TT.videosErr = null; renderTTEditor(); ttLoadVideos(); }
     else if (b.dataset.ttAny != null) { F.anyComment = b.dataset.ttAny === "1"; if (F.anyComment) F.backfill = false; renderTTEditor(); }
     else if (b.id === "ttReplyAdd") { F.replies.push(""); renderTTEditor(); }
     else if (b.dataset.ttReplyDel != null) { F.replies.splice(+b.dataset.ttReplyDel, 1); renderTTEditor(); }
@@ -3396,6 +3406,7 @@ function bind() {
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.auTarget) { F.target = b.dataset.auTarget; renderAuEditor(); if (F.target === "post") loadPostsForEditor(); }
     else if (b.dataset.auAny != null) { F.anyComment = b.dataset.auAny === "1"; renderAuEditor(); }
+    else if (b.id === "auPostsReload") { AU.posts = null; AU.postsErr = null; renderAuEditor(); loadPostsForEditor(); }
     else if (b.id === "auBtnAdd") { F.buttons.push({ title: "", url: "" }); renderAuEditor(); }
     else if (b.dataset.auBtnDel != null) { F.buttons.splice(+b.dataset.auBtnDel, 1); renderAuEditor(); }
     else if (b.id === "auReplyAdd") { F.replies.push(""); renderAuEditor(); }
