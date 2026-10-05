@@ -1,4 +1,4 @@
--- TikTok comment auto-reply: Supabase schema (project kbudvqcnmejuoxyncvtq).
+-- TikTok + YouTube comment auto-reply: Supabase schema (project kbudvqcnmejuoxyncvtq).
 -- Applied as migrations "tiktok_autoreply" and "move_pg_net_to_extensions".
 -- Complete and re-runnable: run it in the Supabase SQL editor to rebuild the backend from scratch.
 -- No secrets in this file: the keys below are generated inside the database.
@@ -52,6 +52,15 @@ create table if not exists public.tiktok_replies (
   source           text not null default 'webhook' check (source in ('webhook','backfill')),
   created_at       timestamptz not null default now()
 );
+
+-- The same tables serve YouTube too: a rule belongs to one Zernio account, and the
+-- platform column tells the app which tab it goes in. Existing rows are TikTok.
+alter table public.tiktok_automations add column if not exists platform text not null default 'tiktok';
+alter table public.tiktok_replies     add column if not exists platform text not null default 'tiktok';
+alter table public.tiktok_automations drop constraint if exists tiktok_automations_platform_check;
+alter table public.tiktok_automations add constraint tiktok_automations_platform_check check (platform in ('tiktok','youtube'));
+alter table public.tiktok_replies drop constraint if exists tiktok_replies_platform_check;
+alter table public.tiktok_replies add constraint tiktok_replies_platform_check check (platform in ('tiktok','youtube'));
 
 create table if not exists public.tiktok_webhook_events (
   id text primary key, event text, payload jsonb, outcome text,

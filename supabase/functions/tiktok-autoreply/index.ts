@@ -1,4 +1,6 @@
-// TikTok comment auto-reply (Supabase Edge Function).
+// TikTok + YouTube comment auto-reply (Supabase Edge Function).
+// The name and the tiktok_* tables predate YouTube; each rule belongs to one Zernio
+// account, and its platform column says which one.
 //
 // Two entry points on one function:
 //   1. Zernio webhook  (header X-Zernio-Signature)  -> reply to one new comment
@@ -31,12 +33,15 @@ async function env(k: string) {
   return ({ ZERNIO_API_KEY: c.zernio_api_key, ZERNIO_WEBHOOK_SECRET: c.webhook_secret, SWEEP_KEY: c.sweep_key } as Record<string, string | undefined>)[k] ?? "";
 }
 
+const PLATFORMS = ["tiktok", "youtube"];
+type Platform = "tiktok" | "youtube";
+
 type Automation = {
-  id: string; account_id: string; video_id: string | null;
+  id: string; account_id: string; platform: Platform; video_id: string | null;
   keywords: string[]; replies: string[]; active: boolean;
 };
 type Candidate = {
-  accountId: string; videoId: string; commentId: string; text: string;
+  platform: Platform; accountId: string; videoId: string; commentId: string; text: string;
   authorId: string | null; authorName: string | null;
   isOwner: boolean; isReply: boolean; alreadyAnswered?: boolean;
 };
@@ -105,7 +110,7 @@ async function loadAutomations(accountId: string, videoId: string | null): Promi
 async function handleComment(c: Candidate, source: "webhook" | "backfill", rules?: Automation[]) {
   if (c.isReply) return "skip:reply-in-thread";
   if (c.isOwner) return "skip:own-comment";
-  if (c.alreadyAnswered) return "skip:already-answered-on-tiktok";
+  if (c.alreadyAnswered) return "skip:already-answered";
 
   const automations = rules ?? await loadAutomations(c.accountId, c.videoId);
   let hit: Automation | null = null, kw: string | null = null;
@@ -118,7 +123,7 @@ async function handleComment(c: Candidate, source: "webhook" | "backfill", rules
       .eq("video_id", c.videoId).eq("commenter_id", c.authorId).eq("status", "sent").limit(1);
     if (prev && prev.length) {
       await db.from("tiktok_replies").insert([{
-        automation_id: hit.id, account_id: c.accountId, video_id: c.videoId, comment_id: c.commentId,
+        automation_id: hit.id, platform: c.platform, account_id: c.accountId, video_id: c.videoId, comment_id: c.commentId,
         commenter_id: c.authorId, commenter_name: c.authorName, comment_text: c.text,
         matched_keyword: kw, status: "skipped", error: "already replied to this person on this video", source,
       }]);
@@ -129,7 +134,7 @@ async function handleComment(c: Candidate, source: "webhook" | "backfill", rules
   const replyText = pick(hit.replies);
   // Claim the comment first. The unique comment_id makes concurrent deliveries safe.
   const { error: claimErr } = await db.from("tiktok_replies").insert([{
-    automation_id: hit.id, account_id: c.accountId, video_id: c.videoId, comment_id: c.commentId,
+    automation_id: hit.id, platform: c.platform, account_id: c.accountId, video_id: c.videoId, comment_id: c.commentId,
     commenter_id: c.authorId, commenter_name: c.authorName, comment_text: c.text,
     matched_keyword: kw, reply_text: replyText, status: "pending", source,
   }]);
@@ -138,7 +143,7 @@ async function handleComment(c: Candidate, source: "webhook" | "backfill", rules
   try {
     const res = await zernio(`/inbox/comments/${encodeURIComponent(c.videoId)}`, {
       method: "POST",
-      headers: { "Idempotency-Key": `tt-reply-${c.commentId}` },
+      headers: { "Idempotency-Key": `${c.platform === "tiktok" ? "tt" : "yt"}-reply-${c.commentId}` },
       body: JSON.stringify({ accountId: c.accountId, commentId: c.commentId, message: replyText }),
     });
     const replyId = res?.commentId || res?.id || res?.data?.id || res?.comment?.id || null;
@@ -154,14 +159,17 @@ async function handleComment(c: Candidate, source: "webhook" | "backfill", rules
 
 // ---------- webhook ----------
 
-function candidateFromWebhook(p: any): Candidate | null {
+function candidateFromWebhook(p: any, platform: Platform): Candidate | null {
   const cm = p?.comment; if (!cm) return null;
   const author = cm.author || cm.from || {};
   const acc = p.account || {};
   const accountId = acc.id || acc.accountId || cm.accountId || p.accountId;
-  const accUser = norm(acc.username || "");
-  const authorUser = norm(author.username || author.name || "");
+  // YouTube handles come with a leading @ on comments but not always on the account.
+  const handle = (s: string) => norm(s).replace(/^@/, "");
+  const accUser = handle(acc.username || "");
+  const authorUser = handle(author.username || author.name || "");
   return {
+    platform,
     accountId,
     videoId: String(cm.platformPostId || cm.postId || ""),
     commentId: String(cm.id),
@@ -181,8 +189,8 @@ async function onWebhook(raw: string, eventIdHeader: string | null) {
 
   let outcome = "ignored";
   const platform = p?.comment?.platform || p?.account?.platform;
-  if (p.event === "comment.received" && platform === "tiktok") {
-    const c = candidateFromWebhook(p);
+  if (p.event === "comment.received" && PLATFORMS.includes(platform)) {
+    const c = candidateFromWebhook(p, platform);
     try {
       outcome = c && c.accountId && c.videoId ? await handleComment(c, "webhook") : "skip:bad-payload";
     } catch (e) {
@@ -208,8 +216,8 @@ async function listVideoComments(accountId: string, videoId: string) {
   }
   return out;
 }
-async function listRecentVideos(accountId: string) {
-  const q = new URLSearchParams({ accountId, platform: "tiktok", limit: "20" });
+async function listRecentVideos(accountId: string, platform: Platform) {
+  const q = new URLSearchParams({ accountId, platform, limit: "20" });
   const r = await zernio(`/inbox/comments?${q}`);
   return (r?.data || []).map((v: any) => String(v.id));
 }
@@ -246,14 +254,14 @@ async function onSweep() {
   for (const a of (data || []) as (Automation & { backfill_requested_at: string })[]) {
     const tally: Record<string, number> = {};
     try {
-      const videos = a.video_id ? [a.video_id] : await listRecentVideos(a.account_id);
+      const videos = a.video_id ? [a.video_id] : await listRecentVideos(a.account_id, a.platform);
       for (const v of videos) {
         const rules = await loadAutomations(a.account_id, v);
         for (const cm of await listVideoComments(a.account_id, v)) {
           const from = cm.from || cm.author || {};
           const answered = (cm.replies || []).some((r: any) => r?.from?.isOwner);
           const res = await handleComment({
-            accountId: a.account_id, videoId: v, commentId: String(cm.id),
+            platform: a.platform, accountId: a.account_id, videoId: v, commentId: String(cm.id),
             text: cm.message ?? cm.text ?? "", authorId: from.id ?? null,
             authorName: from.username || from.name || null, isOwner: !!from.isOwner,
             isReply: !!cm.parentId, alreadyAnswered: answered,

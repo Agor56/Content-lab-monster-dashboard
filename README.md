@@ -1,12 +1,14 @@
-# TikTok comment auto-reply
+# TikTok + YouTube comment auto-reply
 
-Someone comments a keyword on a TikTok video, they get a public reply within seconds. Runs 24/7, costs no Claude usage.
+Someone comments a keyword on a TikTok or YouTube video, they get a public reply (TikTok within seconds, YouTube usually within a few minutes, since Zernio picks up YouTube comments with a delay). Runs 24/7, costs no Claude usage.
 
 ## How it works
 
-TikTok comment → Zernio `comment.received` webhook → Supabase Edge Function `tiktok-autoreply` → reply posted through Zernio → logged in `tiktok_replies`.
+TikTok or YouTube comment → Zernio `comment.received` webhook → Supabase Edge Function `tiktok-autoreply` → reply posted through Zernio → logged in `tiktok_replies`.
 
-- **Rules** are managed in the Carousel Engine: Comment automations → TikTok. The app reads and writes them through the Supabase connector.
+- **One backend for both platforms.** The `tiktok_*` names predate YouTube. Each rule belongs to one Zernio account, and the `platform` column (`tiktok` or `youtube`) on `tiktok_automations` and `tiktok_replies` says which.
+- **Own comments on YouTube** carry no owner flag, so the function matches the comment author against the account handle (YouTube adds a leading `@` to one and not the other).
+- **Rules** are managed in the Carousel Engine: Comment automations → TikTok or YouTube. The app reads and writes them through the Supabase connector.
 - **Backfill:** "reply to past comments" sets `backfill_requested_at`; a pg_cron job calls the function every minute and replies to matching existing comments.
 - **Safety:** one reply per comment (unique `comment_id`), one per person per video, never your own comments or thread replies, 2.5–5 s between backfill replies.
 

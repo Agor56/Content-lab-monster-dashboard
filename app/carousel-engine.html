@@ -297,6 +297,7 @@ details[open]>summary::before{content:"▾"}
 .badge{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;font:700 11px var(--mono);color:#fff;flex:0 0 auto;letter-spacing:.02em}
 .badge.ig{background:#C13584}
 .badge.tt{background:#111418;box-shadow:inset 0 0 0 1px #3a3f4b}
+.badge.yt{background:#E62117}
 .subopts{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 2px}
 .subopts .field select{width:100%}
 .upsteps{display:flex;flex-direction:column;gap:10px}
@@ -456,7 +457,7 @@ details[open]>summary::before{content:"▾"}
     </div>
   </nav>
   <div class="sb-foot">
-    <button class="userchip" id="sbUser" title="Connected accounts"><span class="avatar" id="sbAvatar">A</span><span class="u"><b id="sbHandle">@antongoril</b><span>Instagram · TikTok</span></span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg></button>
+    <button class="userchip" id="sbUser" title="Connected accounts"><span class="avatar" id="sbAvatar">A</span><span class="u"><b id="sbHandle">@antongoril</b><span>Instagram · TikTok · YouTube</span></span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg></button>
   </div>
 </aside>
 <div class="scrim" id="scrim" hidden></div>
@@ -646,7 +647,7 @@ details[open]>summary::before{content:"▾"}
 </section>
 
 <section id="view-video" class="view" hidden>
-  <div class="mhead"><h2>Post a video</h2><span class="meta">Reels to Instagram and videos to TikTok, through Zernio.</span></div>
+  <div class="mhead"><h2>Post a video</h2><span class="meta">Reels to Instagram, videos to TikTok and YouTube, through Zernio.</span></div>
   <div class="vgrid">
     <div class="panel"><div id="vLeft"></div></div>
     <div class="panel"><div id="vRight"></div></div>
@@ -654,7 +655,7 @@ details[open]>summary::before{content:"▾"}
 </section>
 
 <section id="view-auto" class="view" hidden>
-  <div class="mhead"><div><div class="row" style="gap:12px;flex-wrap:wrap"><h2 id="auTitle">Comment → DM</h2><div class="seg auplat" id="auPlat" role="group" aria-label="Platform"><button data-plat="instagram" class="on">Instagram</button><button data-plat="tiktok">TikTok</button></div></div><span class="meta" id="auSub">Someone comments a keyword on Instagram, they get your link in their DMs. Runs 24/7 on Zernio, even with this page closed.</span></div>
+  <div class="mhead"><div><div class="row" style="gap:12px;flex-wrap:wrap"><h2 id="auTitle">Comment → DM</h2><div class="seg auplat" id="auPlat" role="group" aria-label="Platform"><button data-plat="instagram" class="on">Instagram</button><button data-plat="tiktok">TikTok</button><button data-plat="youtube">YouTube</button></div></div><span class="meta" id="auSub">Someone comments a keyword on Instagram, they get your link in their DMs. Runs 24/7 on Zernio, even with this page closed.</span></div>
     <div class="row"><button class="btn" id="auDefaultsBtn">Default replies</button><button class="btn ghost sm" id="auReload">Refresh</button><button class="btn primary" id="auNew">New automation</button></div></div>
   <div id="auBanner"></div>
   <div id="auList" class="aulist"></div>
@@ -1529,7 +1530,10 @@ async function deleteCarousel(id) {
 // Until that connector is wired in, every call rejects with code "not_wired"
 // and the UI shows the setup steps instead.
 const IG_MAX = 10, IG_CAP = 2200, TT_CAP = 4000, TT_TITLE = 90;
-const PLAT = { instagram: { name: "Instagram", badge: "IG", cls: "ig" }, tiktok: { name: "TikTok", badge: "TT", cls: "tt" } };
+const PLAT = { instagram: { name: "Instagram", badge: "IG", cls: "ig" }, tiktok: { name: "TikTok", badge: "TT", cls: "tt" }, youtube: { name: "YouTube", badge: "YT", cls: "yt" } };
+// TikTok and YouTube auto-replies share one Supabase backend; Instagram runs on Zernio.
+const REPLY_PLATS = ["tiktok", "youtube"];
+const isReplyPlat = (p) => REPLY_PLATS.includes(p);
 const PRIVACY = [["PUBLIC_TO_EVERYONE", "Everyone"], ["MUTUAL_FOLLOW_FRIENDS", "Friends"], ["FOLLOWER_OF_CREATOR", "Followers"], ["SELF_ONLY", "Only me"]];
 const STARTER_REPLIES = [
   "שלחתי לך בפרטי 📩",
@@ -1740,7 +1744,7 @@ async function loadAccounts() {
 function setupCardHTML(title) {
   return `<div class="card warn"><h4>${esc(title || "Posting isn't switched on yet")}</h4>
     <p>Posting runs through Zernio. Connect it to Claude once, then ask Claude to switch posting on:</p>
-    <ol><li>In Claude: Settings → Connectors → Add custom connector.</li><li>Name it <b>Zernio</b>, URL <span class="mono">https://mcp.zernio.com/mcp</span>, and sign in.</li><li>Check that Instagram and TikTok are connected inside Zernio.</li></ol></div>`;
+    <ol><li>In Claude: Settings → Connectors → Add custom connector.</li><li>Name it <b>Zernio</b>, URL <span class="mono">https://mcp.zernio.com/mcp</span>, and sign in.</li><li>Check that Instagram, TikTok and YouTube are connected inside Zernio.</li></ol></div>`;
 }
 
 /* ---------- post wizard ---------- */
@@ -1950,12 +1954,20 @@ async function submitPost() {
 
 /* ---------- video composer ---------- */
 const V_CAP = 2200;
-const VZ = { ig: true, tt: true, igFeed: true, ttMode: "direct", ttComment: true, ttDuet: true, ttStitch: true };
+const VZ = { ig: true, tt: true, yt: true, igFeed: true, ttMode: "direct", ttComment: true, ttDuet: true, ttStitch: true };
+const YT_TITLE = 100;
+const YT_VIS = [["public", "Public"], ["unlisted", "Unlisted"], ["private", "Private"]];
+const YT_CAT = [["22", "People & Blogs"], ["28", "Science & Technology"], ["27", "Education"], ["24", "Entertainment"], ["26", "Howto & Style"]];
+// YouTube rejects < and > in titles and descriptions.
+const ytClean = (s) => String(s || "").replace(/[<>]/g, "");
+const ytAutoTitle = (cap) => ytClean((String(cap || "").split("\n").map((l) => l.trim()).find(Boolean) || "").replace(/#\S+/g, "").trim()).slice(0, YT_TITLE);
 function resetVideo(keepPrefs) {
   const t = new Date(Date.now() + 86400000); t.setHours(18, 0, 0, 0); const lp = localParts(t.getTime());
   Object.assign(VZ, { token: null, url: null, opened: false, fetching: false, checking: false, manual: false, checkedAt: 0, err: null, files: [], pick: 0, coverSec: "", localUrl: null, localName: "",
-    caption: "", ttConsent: false, when: "now", date: lp.date, time: lp.time, busy: false, dm: newDm() });
-  if (!keepPrefs) Object.assign(VZ, { ig: true, tt: true, igFeed: true, ttMode: "direct", ttComment: true, ttDuet: true, ttStitch: true });
+    caption: "", ttConsent: false, when: "now", date: lp.date, time: lp.time, busy: false, dm: newDm(),
+    ytTitle: "", ytTitleEdited: false, ytFirst: "" });
+  if (!keepPrefs) Object.assign(VZ, { ig: true, tt: true, yt: true, igFeed: true, ttMode: "direct", ttComment: true, ttDuet: true, ttStitch: true,
+    ytVis: "public", ytCat: "22", ytKids: false, ytAi: false });
 }
 resetVideo();
 function parseUploadedVideos(text) {
@@ -1970,12 +1982,14 @@ const vFile = () => VZ.files[VZ.pick] || VZ.files[0] || null;
 function vProblems() {
   const out = [];
   if (!vFile()) out.push("Upload your video first.");
-  if (!VZ.ig && !VZ.tt) out.push("Pick Instagram, TikTok or both.");
+  if (!VZ.ig && !VZ.tt && !VZ.yt) out.push("Pick at least one: Instagram, TikTok or YouTube.");
+  if (VZ.yt && !VZ.ytTitle.trim()) out.push("Give the YouTube video a title.");
   if (VZ.caption.length > V_CAP) out.push(`Captions max out at ${V_CAP.toLocaleString()} characters.`);
   if (VZ.when === "schedule") { const ts = new Date(`${VZ.date}T${VZ.time}:00`).getTime(); if (!(ts > Date.now() + 60000)) out.push("Pick a time in the future."); }
   if (Z.state === "ok") {
     if (VZ.ig && !acctFor("instagram")) out.push("Instagram isn't connected in Zernio.");
     if (VZ.tt && !acctFor("tiktok")) out.push("TikTok isn't connected in Zernio.");
+    if (VZ.yt && !acctFor("youtube")) out.push("YouTube isn't connected in Zernio.");
   } else out.push(Z.state === "loading" ? "Checking your Zernio accounts…" : Z.state === "needs_ok" ? "Allow Zernio first." : "Zernio isn't reachable yet.");
   if (VZ.tt && !VZ.ttConsent) out.push("Tick the TikTok confirmation.");
   if (VZ.ig) out.push(...dmProblems(VZ.dm));
@@ -1984,7 +1998,7 @@ function vProblems() {
 function vPlatRow(key, checked) {
   const p = PLAT[key], a = acctFor(key);
   const acct = Z.state === "loading" ? `<span class="acct">Checking…</span>` : a ? `<span class="acct ok">@${esc(a.handle)}</span>` : Z.state === "ok" ? `<span class="acct">Not connected in Zernio</span>` : "";
-  const label = key === "instagram" ? "Instagram Reel" : "TikTok video";
+  const label = key === "instagram" ? "Instagram Reel" : key === "youtube" ? "YouTube" : "TikTok video";
   return `<label class="plat"><input type="checkbox" data-vplat="${key}"${checked ? " checked" : ""}><span class="badge ${p.cls}" aria-hidden="true">${p.badge}</span><span class="nm">${label}</span>${acct}</label>`;
 }
 function renderVideo() { if (S.view !== "video") return; renderVLeft(); renderVRight(); }
@@ -2003,7 +2017,7 @@ function renderVLeft() {
   else if (f) L += `<div class="vfile"><span aria-hidden="true">▶</span><span class="nm" dir="auto">${esc(f.name)}</span></div>`;
   if (f || VZ.url) L += `<button class="btn ghost sm" id="vNewLink" style="align-self:flex-start">${f ? "Use a different video" : "Upload page expired? Get a new link"}</button>`;
   L += `</div><div class="group"><span class="lbl">Cover frame <span class="meta" style="text-transform:none;letter-spacing:0">optional</span></span>
-    <p class="hint">The frame Instagram and TikTok show as the cover. To pick it by eye, choose the same video from your computer. It stays on your computer.</p>`;
+    <p class="hint">The frame Instagram and TikTok show as the cover. YouTube picks its own. To pick it by eye, choose the same video from your computer. It stays on your computer.</p>`;
   if (VZ.localUrl) L += `<video class="vprev" id="vPrev" src="${VZ.localUrl}" controls playsinline muted preload="metadata"></video>
     <div class="row"><button class="btn sm" id="vUseFrame">Use this frame as cover</button><span class="meta" dir="auto">${esc(VZ.localName)}</span></div>`;
   else L += `<div><label class="btn sm" for="vLocal">Preview my video</label><input type="file" id="vLocal" accept="video/*" hidden></div>`;
@@ -2021,6 +2035,14 @@ function renderVRight() {
   if (VZ.tt) R += `<div class="subopts"><label class="field"><span>TikTok: send as</span><select class="input" id="vTtMode"><option value="direct"${VZ.ttMode === "direct" ? " selected" : ""}>Post directly (public)</option><option value="inbox"${VZ.ttMode === "inbox" ? " selected" : ""}>Draft to my TikTok inbox</option></select></label>
       <div class="field"><span>Allow</span><div class="row" style="flex-wrap:wrap;gap:10px"><label class="check"><input type="checkbox" id="vTtComment"${VZ.ttComment ? " checked" : ""}> Comments</label><label class="check"><input type="checkbox" id="vTtDuet"${VZ.ttDuet ? " checked" : ""}> Duets</label><label class="check"><input type="checkbox" id="vTtStitch"${VZ.ttStitch ? " checked" : ""}> Stitches</label></div></div></div>
     ${VZ.ttMode === "inbox" ? `<div class="card soft"><p>After it's sent, open the TikTok app → Inbox → System notifications and tap the video to finish posting. You can add TikTok sounds there.</p></div>` : `<p class="hint">TikTok only lets your account post videos directly as public. For a private test, send it to your inbox as a draft.</p>`}`;
+  R += vPlatRow("youtube", VZ.yt);
+  if (VZ.yt) R += `<label class="field" for="vYtTitle"><span>YouTube title <b class="counter${VZ.ytTitle.length > YT_TITLE ? " over" : ""}" id="vYtTitleN">${VZ.ytTitle.length} / ${YT_TITLE}</b></span>
+      <input id="vYtTitle" class="input" dir="auto" maxlength="${YT_TITLE}" value="${esc(VZ.ytTitle)}" placeholder="Filled from the caption's first line"><span class="hint">The caption becomes the description. Vertical videos up to 3 minutes go out as Shorts.</span></label>
+    <div class="subopts"><label class="field"><span>Who can see it</span><select class="input" id="vYtVis">${YT_VIS.map(([v, l]) => `<option value="${v}"${VZ.ytVis === v ? " selected" : ""}>${l}</option>`).join("")}</select></label>
+      <label class="field"><span>Category</span><select class="input" id="vYtCat">${YT_CAT.map(([v, l]) => `<option value="${v}"${VZ.ytCat === v ? " selected" : ""}>${l}</option>`).join("")}</select></label></div>
+    <div class="row" style="flex-wrap:wrap;gap:14px"><label class="check"><input type="checkbox" id="vYtKids"${VZ.ytKids ? " checked" : ""}> Made for kids</label><label class="check"><input type="checkbox" id="vYtAi"${VZ.ytAi ? " checked" : ""}> Contains realistic AI-generated content</label></div>
+    ${VZ.ytKids ? `<p class="hint">Made for kids turns off comments on the video for good, so YouTube auto-replies won't run on it.</p>` : ""}
+    <label class="field" for="vYtFirst"><span>Pinned first comment <b>optional</b></span><textarea id="vYtFirst" class="input" rows="2" dir="auto" placeholder="For example where to find the link">${esc(VZ.ytFirst)}</textarea></label>`;
   R += `</div><div class="group"><label class="lbl" for="vCap"><span class="step">3</span>Caption <b class="counter${VZ.caption.length > V_CAP ? " over" : ""}" id="vCapN" style="float:right">${VZ.caption.length.toLocaleString()} / ${V_CAP.toLocaleString()}</b></label>
     <textarea id="vCap" class="input" rows="7" dir="auto" placeholder="Write the caption, hashtags included">${esc(VZ.caption)}</textarea></div>`;
   if (VZ.ig) R += `<div class="group" id="vDmGroup">${dmBlockHTML(VZ.dm, "v", VZ.caption)}</div>`;
@@ -2041,9 +2063,10 @@ function updateVideoFoot() {
   const parts = [];
   if (VZ.ig) { const a = acctFor("instagram"); parts.push(`<b>Instagram Reel</b>${a ? " @" + esc(a.handle) : ""}`); }
   if (VZ.tt) { const a = acctFor("tiktok"); parts.push(`<b>TikTok</b>${a ? " @" + esc(a.handle) : ""}${VZ.ttMode === "inbox" ? " (inbox draft)" : ""}`); }
+  if (VZ.yt) { const a = acctFor("youtube"); parts.push(`<b>YouTube</b>${a ? " " + esc(a.handle) : ""}${VZ.ytVis !== "public" ? ` (${VZ.ytVis})` : ""}`); }
   const ts = new Date(`${VZ.date}T${VZ.time}:00`).getTime();
   const whenTxt = VZ.when === "now" ? "right now" : (ts ? fmtWhen(ts) + ` (${esc(TZ)})` : "—");
-  $("#vSummary").innerHTML = `${f2(vFile())} to ${parts.join(" and ") || "—"}, ${whenTxt}.`;
+  $("#vSummary").innerHTML = `${f2(vFile())} to ${parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0] || "—"}, ${whenTxt}.`;
 }
 function f2(f) { return f ? `<b dir="auto">${esc(f.name)}</b>` : "Your video"; }
 async function enterVideo() {
@@ -2113,6 +2136,9 @@ function buildVideoBody(file, publishNow) {
   const platforms = [];
   if (VZ.ig) platforms.push({ platform: "instagram", accountId: acctFor("instagram").id, platformSpecificData: { shareToFeed: !!VZ.igFeed, ...(ms != null ? { thumbOffset: ms } : {}) } });
   if (VZ.tt) platforms.push({ platform: "tiktok", accountId: acctFor("tiktok").id });
+  if (VZ.yt) platforms.push({ platform: "youtube", accountId: acctFor("youtube").id, customContent: ytClean(VZ.caption), platformSpecificData: {
+    title: ytClean(VZ.ytTitle).trim().slice(0, YT_TITLE), visibility: VZ.ytVis, categoryId: VZ.ytCat, madeForKids: !!VZ.ytKids, containsSyntheticMedia: !!VZ.ytAi,
+    ...(VZ.ytFirst.trim() ? { firstComment: VZ.ytFirst.trim() } : {}) } });
   const body = { content: VZ.caption, media_items: [{ url: file.url, type: "video" }], platforms, publish_now: publishNow, timezone: TZ === "local time" ? "UTC" : TZ };
   if (!publishNow) body.scheduled_for = `${VZ.date}T${VZ.time}:00`;
   if (VZ.tt) body.tiktok_settings = {
@@ -2129,6 +2155,7 @@ async function submitVideo() {
   const id = uid(), platforms = [];
   if (VZ.ig) { const a = acctFor("instagram"); platforms.push({ platform: "instagram", accountId: a.id, handle: a.handle, status: "posting" }); }
   if (VZ.tt) { const a = acctFor("tiktok"); platforms.push({ platform: "tiktok", accountId: a.id, handle: a.handle, status: "posting" }); }
+  if (VZ.yt) { const a = acctFor("youtube"); platforms.push({ platform: "youtube", accountId: a.id, handle: a.handle, status: "posting" }); }
   const title = (VZ.caption.split("\n")[0] || "").replace(/#\S+/g, "").trim().slice(0, 60) || f.name;
   await dbSet("posts/" + id, { id, kind: "video", carouselId: null, title, fileName: f.name, coverMediaId: null, caption: VZ.caption, ttMode: VZ.ttMode,
     publishNow, when, platforms, createdAt: now, updatedAt: now });
@@ -2631,12 +2658,12 @@ async function dmCreateForPost(D, ids, title) {
   return (o.automation && auId(o.automation)) || true;
 }
 
-/* ---------- TikTok comment auto-reply (Supabase backend) ---------- */
-// Rules live in Supabase (public.tiktok_automations). The Supabase Edge Function answers
-// each new TikTok comment within seconds via Zernio's webhook, even with this page closed.
+/* ---------- TikTok + YouTube comment auto-reply (Supabase backend) ---------- */
+// Rules live in Supabase (public.tiktok_automations, one row per rule, platform column says which).
+// The Supabase Edge Function answers each new comment via Zernio's webhook, even with this page closed.
 // This page only manages the rules and reads the reply log, through the Supabase connector.
 const SB = "Supabase";                       // connector display name in claude.ai
-const SB_PROJECT = "kbudvqcnmejuoxyncvtq";   // Supabase project that holds the tiktok_* tables
+const SB_PROJECT = "kbudvqcnmejuoxyncvtq";   // Supabase project that holds the tiktok_* tables (TikTok and YouTube rules)
 const SB_SQL_TOOL = "execute_sql";
 const IF_SERVERS = [SB];
 let IFS = SB;
@@ -2646,8 +2673,20 @@ const TT_STARTER = [
   "בשמחה! תיכנסו ללינק בפרופיל, הכל זמין בערוץ הטלגרם 🔥",
   "הנה: לינק בפרופיל ← ערוץ הטלגרם. בהצלחה ✌️",
 ];
-const TT = { list: [], loaded: false, loading: false, err: null, videos: null, videosErr: null, defaults: null, F: null, perm: null, cachedAt: null, cacheSig: "" };
-const ttReplies = () => (TT.defaults && Array.isArray(TT.defaults.replies) && TT.defaults.replies.length ? TT.defaults.replies : TT_STARTER).filter((r) => String(r).trim());
+const YT_STARTER = [
+  "היי! הלינק זמין בערוץ הטלגרם, אצלי בפרופיל 🙌",
+  "יאללה, הכל מחכה בטלגרם שלי. הלינק בפרופיל הערוץ 👆",
+  "בשמחה! הלינק לטלגרם נמצא בפרופיל 🔥",
+  "הנה: פרופיל הערוץ ← ערוץ הטלגרם. בהצלחה ✌️",
+];
+const REPLY_STARTER = { tiktok: TT_STARTER, youtube: YT_STARTER };
+// TikTok cuts replies at 150 characters; YouTube takes long ones, but short reads better.
+const REPLY_CAP = { tiktok: 150, youtube: 500 };
+const TT = { list: [], loaded: false, loading: false, err: null, vids: { tiktok: null, youtube: null }, videosErr: null, defaults: { tiktok: null, youtube: null }, F: null, perm: null, cachedAt: null, cacheSig: "" };
+const rpPlat = () => (isReplyPlat(AUP.plat) ? AUP.plat : "tiktok");
+const rowPlat = (a) => a.platform || "tiktok"; // rows cached before YouTube have no platform
+const pName = (p) => PLAT[p].name;
+const ttReplies = (p) => { p = p || rpPlat(); const d = TT.defaults[p]; return (d && Array.isArray(d.replies) && d.replies.length ? d.replies : REPLY_STARTER[p]).filter((r) => String(r).trim()); };
 const isUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s));
 function ifFriendly(e) {
   const c = e && e.code;
@@ -2692,7 +2731,7 @@ function bindSql(query, params) {
 }
 async function ifSql(query, params, opts) {
   const mcp = await getMcp();
-  if (!mcp) throw zErr("unavailable", "TikTok automations aren't available in this view. Open the page in Claude.");
+  if (!mcp) throw zErr("unavailable", "Auto-replies aren't available in this view. Open the page in Claude.");
   const write = !!(opts && opts.write);
   let timer;
   const deadline = new Promise((_, rej) => { timer = setTimeout(() => rej(zErr("timeout", write
@@ -2717,12 +2756,12 @@ async function ttLoad() {
   if (TT.loading) return;
   TT.loading = true; TT.err = null; renderTT();
   try {
-    TT.list = await ifSql(`select id, name, account_id, video_id, video_caption, video_cover, keywords, replies, active,
+    TT.list = await ifSql(`select id, name, platform, account_id, video_id, video_caption, video_cover, keywords, replies, active,
       matched_count, replied_count, last_reply_at, backfill_requested_at, backfill_done_at, backfill_result, created_at
       from public.tiktok_automations order by created_at desc`);
     TT.loaded = true;
     ttCacheSave();
-  } catch (e) { TT.err = (e && e.message) || "Couldn't load your TikTok automations."; }
+  } catch (e) { TT.err = (e && e.message) || "Couldn't load your auto-replies."; }
   TT.loading = false; renderTT();
 }
 // Remember the last list Supabase gave us (artifact db), so the tab shows it instantly next time.
@@ -2739,15 +2778,15 @@ function ttCacheLoad(d) {
   renderTT();
 }
 const ttShowing = () => TT.loaded || TT.cachedAt != null;
-async function ttVideos() {
-  if (TT.videos) return TT.videos;
-  const a = acctFor("tiktok"); if (!a) throw zErr("no_tt", "TikTok isn't connected in Zernio.");
-  const o = await zTool("comments_list_inbox_comments", { account_id: a.id, platform: "tiktok", limit: 30 });
-  TT.videos = (o.data || []).map((v) => ({
+async function ttVideos(p) {
+  if (TT.vids[p]) return TT.vids[p];
+  const a = acctFor(p); if (!a) throw zErr("no_acct", `${pName(p)} isn't connected in Zernio.`);
+  const o = await zTool("comments_list_inbox_comments", { account_id: a.id, platform: p, limit: 30 });
+  TT.vids[p] = (o.data || []).map((v) => ({
     id: String(v.id), cover: v.picture || "", comments: v.commentCount || 0, date: v.createdTime,
     title: (String(v.content || "").split("\n").map((l) => l.trim()).find(Boolean) || "(no caption)").replace(/#\S+/g, "").trim().slice(0, 80) || "(no caption)",
   }));
-  return TT.videos;
+  return TT.vids[p];
 }
 function ttTarget(a) { return a.video_id ? `Video: ${a.video_caption || a.video_id}` : "Any video"; }
 function ttBackfillNote(a) {
@@ -2756,31 +2795,33 @@ function ttBackfillNote(a) {
   return "";
 }
 function renderTT() {
-  if (S.view !== "auto" || AUP.plat !== "tiktok") return;
+  if (S.view !== "auto" || !isReplyPlat(AUP.plat)) return;
+  const p = AUP.plat, pb = PLAT[p];
   const ban = $("#auBanner");
   const needsOk = TT.perm === "prompt" || TT.perm === "denied";
   $("#auNew").disabled = needsOk || !ttShowing();
   if (needsOk) ban.innerHTML = TT.perm === "denied"
-    ? `<div class="card bad"><h4>Supabase was declined for this page</h4><p>Reload the page and choose Allow when Claude asks, to manage TikTok auto-replies here.</p></div>`
-    : `<div class="card warn"><h4>Let this page use Supabase</h4><p>Your TikTok rules live in your Supabase project. Claude asks once before the app can read or change them.</p><div><button class="btn primary sm" id="ttAllow">Allow Supabase</button></div></div>`;
+    ? `<div class="card bad"><h4>Supabase was declined for this page</h4><p>Reload the page and choose Allow when Claude asks, to manage TikTok and YouTube auto-replies here.</p></div>`
+    : `<div class="card warn"><h4>Let this page use Supabase</h4><p>Your TikTok and YouTube rules live in your Supabase project. Claude asks once before the app can read or change them.</p><div><button class="btn primary sm" id="ttAllow">Allow Supabase</button></div></div>`;
   else {
     const cached = !TT.loaded && TT.cachedAt != null;
     const when = cached ? ` from ${esc(ago(TT.cachedAt))}` : "";
     ban.innerHTML = TT.err
       ? `<div class="card bad"><h4>Couldn't reach Supabase</h4><p>${esc(TT.err)}</p>${cached ? `<p>Showing your last saved list${when}. Your auto-replies keep running on the server either way. Press Refresh to try again.</p>` : ""}</div>`
       : TT.loading && !TT.loaded
-        ? `<p class="hint">${cached ? `Showing your last saved list${when} · refreshing…` : "Loading your TikTok automations…"}</p>`
+        ? `<p class="hint">${cached ? `Showing your last saved list${when} · refreshing…` : `Loading your ${pName(p)} automations…`}</p>`
         : "";
   }
   const g = $("#auList");
   if (needsOk) { g.innerHTML = ""; return; }
-  if (ttShowing() && !TT.list.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>No TikTok automations yet.</b><br>Press New automation, pick a video or "Any video", and type the keyword people comment.</div>`; return; }
-  g.innerHTML = TT.list.map((a) => {
+  const list = TT.list.filter((a) => rowPlat(a) === p);
+  if (ttShowing() && !list.length) { g.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>No ${pName(p)} automations yet.</b><br>Press New automation, pick a video or "Any video", and type the keyword people comment.${p === "youtube" ? "<br>YouTube comments reach the server a few minutes after they're posted, so replies aren't instant." : ""}</div>`; return; }
+  g.innerHTML = list.map((a) => {
     const on = !!a.active;
     const kws = (a.keywords || []).length ? a.keywords.map((k) => `<span class="kw" dir="auto">${esc(k)}</span>`).join("") : `<span class="meta">Any comment</span>`;
     const reps = a.replies || [];
     return `<article class="aucard${on ? "" : " off"}">
-      <div class="top"><span class="badge tt" aria-hidden="true">TT</span><b dir="auto">${esc(a.name || "TikTok automation")}</b><label class="switch" title="${on ? "Live" : "Paused"}"><input type="checkbox" data-tt-toggle="${esc(a.id)}"${on ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>${on ? "Live" : "Paused"}</span></label></div>
+      <div class="top"><span class="badge ${pb.cls}" aria-hidden="true">${pb.badge}</span><b dir="auto">${esc(a.name || pName(p) + " automation")}</b><label class="switch" title="${on ? "Live" : "Paused"}"><input type="checkbox" data-tt-toggle="${esc(a.id)}"${on ? " checked" : ""}><span class="knob" aria-hidden="true"></span><span>${on ? "Live" : "Paused"}</span></label></div>
       <div class="meta" dir="auto">${esc(ttTarget(a))}</div>
       <div class="kws">${kws}</div>
       ${reps[0] ? `<div class="dm" dir="auto">${esc(reps[0])}${reps.length > 1 ? `\n<span class="meta">+${reps.length - 1} more, picked at random</span>` : ""}</div>` : ""}
@@ -2793,11 +2834,12 @@ function renderTT() {
 // "Any comment" (no keywords) is only allowed on one specific video, never on every video.
 const ttAny = (F) => !!F.anyComment && F.target === "video";
 function newTTForm(preset) {
-  return Object.assign({ id: null, name: "", target: "any", videoId: "", videoCaption: "", videoCover: "", keywords: "", anyComment: false, replies: ttReplies().slice(), backfill: true, saveDefault: false, busy: false, err: null }, preset || {});
+  const platform = (preset && preset.platform) || rpPlat();
+  return Object.assign({ id: null, platform, name: "", target: "any", videoId: "", videoCaption: "", videoCover: "", keywords: "", anyComment: false, replies: ttReplies(platform).slice(), backfill: true, saveDefault: false, busy: false, err: null }, preset || {});
 }
 function ttFormFrom(a) {
-  return newTTForm({ id: a.id, name: a.name || "", target: a.video_id ? "video" : "any", videoId: a.video_id || "", videoCaption: a.video_caption || "", videoCover: a.video_cover || "",
-    keywords: (a.keywords || []).join(", "), anyComment: !!a.video_id && !(a.keywords || []).length, replies: (a.replies || []).length ? a.replies.slice() : ttReplies().slice(), backfill: false });
+  return newTTForm({ id: a.id, platform: rowPlat(a), name: a.name || "", target: a.video_id ? "video" : "any", videoId: a.video_id || "", videoCaption: a.video_caption || "", videoCover: a.video_cover || "",
+    keywords: (a.keywords || []).join(", "), anyComment: !!a.video_id && !(a.keywords || []).length, replies: (a.replies || []).length ? a.replies.slice() : ttReplies(rowPlat(a)).slice(), backfill: false });
 }
 // A duplicate opens as a new, unsaved automation: nothing goes live until Save.
 function dupTTForm(a) {
@@ -2809,8 +2851,9 @@ function ttProblems(F) {
   if (F.target === "video" && !F.videoId) add("Pick the video.", "#ttVideo");
   if (!kws.length && !ttAny(F)) add(F.target === "video" ? "Add a keyword, or set Trigger on to \"Any comment\"." : "Add at least one keyword.", "#ttKw");
   if (!F.replies.some((r) => r.trim())) add("Write at least one reply.", "[data-tt-reply]");
-  if (F.replies.some((r) => r.length > 150)) add("Keep each reply under 150 characters. TikTok cuts long replies.", "[data-tt-reply]");
-  if (!acctFor("tiktok")) add(Z.state === "ok" ? "TikTok isn't connected in Zernio." : "Checking your TikTok account in Zernio…", "#ttKw");
+  const cap = REPLY_CAP[F.platform];
+  if (F.replies.some((r) => r.length > cap)) add(`Keep each reply under ${cap} characters.${F.platform === "tiktok" ? " TikTok cuts long replies." : ""}`, "[data-tt-reply]");
+  if (!acctFor(F.platform)) add(Z.state === "ok" ? `${pName(F.platform)} isn't connected in Zernio.` : `Checking your ${pName(F.platform)} account in Zernio…`, "#ttKw");
   return out;
 }
 function openTTEditor(F) {
@@ -2820,14 +2863,16 @@ function openTTEditor(F) {
   if (TT.F.target === "video") ttLoadVideos();
 }
 async function ttLoadVideos() {
-  if (TT.videos) { renderTTEditor(); return; }
+  const p = TT.F ? TT.F.platform : rpPlat();
+  if (TT.vids[p]) { renderTTEditor(); return; }
   if (Z.state === "loading" || Z.state === "idle") await loadAccounts();
-  try { await ttVideos(); TT.videosErr = null; } catch (e) { TT.videosErr = (e && e.message) || "Couldn't load your TikTok videos."; }
+  try { await ttVideos(p); TT.videosErr = null; } catch (e) { TT.videosErr = (e && e.message) || `Couldn't load your ${pName(p)} videos.`; }
   if (!$("#ttEditor").hidden) renderTTEditor();
 }
 function renderTTEditor() {
   const F = TT.F; if (!F) return;
-  $("#ttEdTitle").textContent = F.id ? "Edit TikTok automation" : F.dupOf ? "Duplicate TikTok automation" : "New TikTok automation";
+  const pn = pName(F.platform), vids = TT.vids[F.platform], cap = REPLY_CAP[F.platform];
+  $("#ttEdTitle").textContent = `${F.id ? "Edit" : F.dupOf ? "Duplicate" : "New"} ${pn} automation`;
   let h = F.err ? `<div class="card bad"><p>${esc(F.err)}</p></div>` : "";
   if (F.dupOf) h += `<div class="card soft"><p>Copy of <b dir="auto">${esc(F.dupName || "your automation")}</b>. Nothing is live until you save. Change the keyword or the video first, otherwise the two overlap.</p></div>`;
   h += `<label class="field" for="ttName"><span>Name <b>optional</b></span><input id="ttName" class="input" dir="auto" value="${esc(F.name)}" placeholder="Leave empty and it's named after the keyword"></label>
@@ -2835,10 +2880,10 @@ function renderTTEditor() {
     <div class="seg" role="group"><button data-tt-target="any"${F.target === "any" ? ' class="on"' : ""}>Any video</button><button data-tt-target="video"${F.target === "video" ? ' class="on"' : ""}>A specific video</button></div></div>`;
   if (F.target === "video") {
     if (TT.videosErr) h += `<div class="card bad"><p>${esc(TT.videosErr)}</p><div><button class="btn sm" id="ttVideosReload" type="button">Try again</button></div></div>`;
-    else if (!TT.videos) h += `<p class="hint">Loading your recent TikToks…</p>`;
+    else if (!vids) h += `<p class="hint">Loading your recent ${pn} videos…</p>`;
     else {
-      const opts = TT.videos.map((v) => `<option value="${esc(v.id)}"${v.id === F.videoId ? " selected" : ""}>${esc(v.date ? new Date(v.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " · " : "")}${esc(v.title)} (${v.comments} comments)</option>`).join("");
-      const extra = F.videoId && !TT.videos.some((v) => v.id === F.videoId) ? `<option value="${esc(F.videoId)}" selected>${esc(F.videoCaption || F.videoId)}</option>` : "";
+      const opts = vids.map((v) => `<option value="${esc(v.id)}"${v.id === F.videoId ? " selected" : ""}>${esc(v.date ? new Date(v.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " · " : "")}${esc(v.title)} (${v.comments} comments)</option>`).join("");
+      const extra = F.videoId && !vids.some((v) => v.id === F.videoId) ? `<option value="${esc(F.videoId)}" selected>${esc(F.videoCaption || F.videoId)}</option>` : "";
       h += `<label class="field" for="ttVideo"><span>Video <button class="btn ghost sm" id="ttVideosReload" type="button">Reload videos</button></span><select id="ttVideo" class="input" dir="auto"><option value="">Pick a video…</option>${opts}${extra}</select></label>`;
       if (F.videoCover) h += `<div class="imgrow"><div class="imgthumb" style="background-image:url(${esc(F.videoCover)})"></div><span class="meta" dir="auto">${esc(F.videoCaption)}</span></div>`;
     }
@@ -2849,9 +2894,9 @@ function renderTTEditor() {
   <p class="hint" style="margin-top:-6px">Matches anywhere in the comment and ignores capital letters, so "Design pls 🙏" counts. Each person gets one reply per video.</p>`;
   h += `<div class="dmblock" style="border-style:solid;border-color:var(--accent);background:color-mix(in srgb,var(--accent-soft) 45%,var(--surface))">
     <span class="lbl" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Public reply under the comment</span>
-    <p class="hint">One is picked at random each time, so it doesn't look like a bot. TikTok can't send DMs from a non-business account, so point people to your profile link.</p>
-    ${F.replies.map((r, k) => `<div class="replyrow"><textarea class="input" rows="1" dir="auto" maxlength="150" data-tt-reply="${k}">${esc(r)}</textarea><button class="btn ghost sm" data-tt-reply-del="${k}" aria-label="Remove reply"${F.replies.length <= 1 ? " disabled" : ""}>✕</button></div>`).join("")}
-    <div class="row" style="flex-wrap:wrap"><button class="btn ghost sm" id="ttReplyAdd"${F.replies.length >= 6 ? " disabled" : ""}>+ Add reply</button><button class="btn ghost sm" id="ttReplyDefaults">Use my TikTok defaults</button><label class="check"><input type="checkbox" id="ttSaveDef"${F.saveDefault ? " checked" : ""}> Save these as my TikTok defaults</label></div>
+    <p class="hint">One is picked at random each time, so it doesn't look like a bot. ${F.platform === "youtube" ? "YouTube has no DMs, so point people to your channel profile or the video description." : "TikTok can't send DMs from a non-business account, so point people to your profile link."}</p>
+    ${F.replies.map((r, k) => `<div class="replyrow"><textarea class="input" rows="1" dir="auto" maxlength="${cap}" data-tt-reply="${k}">${esc(r)}</textarea><button class="btn ghost sm" data-tt-reply-del="${k}" aria-label="Remove reply"${F.replies.length <= 1 ? " disabled" : ""}>✕</button></div>`).join("")}
+    <div class="row" style="flex-wrap:wrap"><button class="btn ghost sm" id="ttReplyAdd"${F.replies.length >= 6 ? " disabled" : ""}>+ Add reply</button><button class="btn ghost sm" id="ttReplyDefaults">Use my ${pn} defaults</button><label class="check"><input type="checkbox" id="ttSaveDef"${F.saveDefault ? " checked" : ""}> Save these as my ${pn} defaults</label></div>
   </div>
   <label class="check"><input type="checkbox" id="ttBackfill"${F.backfill ? " checked" : ""}> Also reply to ${ttAny(F) ? "everyone who already commented on this video" : `matching comments already on ${F.target === "video" ? "this video" : "my last 20 videos"}`} (skips ones you already answered)</label>`;
   rerender($("#ttEdBody"), h);
@@ -2871,11 +2916,11 @@ function ttJump() {
   const n = $("#ttEdNote"); n.textContent = first.msg; n.style.color = "var(--danger)";
   return true;
 }
-async function ttSaveDefaults(replies) {
+async function ttSaveDefaults(replies, p) {
   const clean = replies.map((r) => String(r).trim()).filter(Boolean).slice(0, 6);
   if (!clean.length) return false;
-  const ok = await dbSet("settings/ttreplies", { replies: clean, updatedAt: Date.now() });
-  if (ok) TT.defaults = { replies: clean };
+  const ok = await dbSet(p === "youtube" ? "settings/ytreplies" : "settings/ttreplies", { replies: clean, updatedAt: Date.now() });
+  if (ok) TT.defaults[p] = { replies: clean };
   return ok;
 }
 async function ttSave() {
@@ -2896,12 +2941,12 @@ async function ttSave() {
         backfill_requested_at = case when $7::boolean then now() else backfill_requested_at end
         where id = $8::uuid returning id`, [...vals, F.id], { write: true });
     } else {
-      await ifSql(`insert into public.tiktok_automations (name, video_id, video_caption, video_cover, keywords, replies, backfill_requested_at, account_id, active)
-        values ($1, $2, $3, $4, $5::text[], $6::text[], case when $7::boolean then now() end, $8, true) returning id`, [...vals, acctFor("tiktok").id], { write: true });
+      await ifSql(`insert into public.tiktok_automations (name, video_id, video_caption, video_cover, keywords, replies, backfill_requested_at, account_id, platform, active)
+        values ($1, $2, $3, $4, $5::text[], $6::text[], case when $7::boolean then now() end, $8, $9, true) returning id`, [...vals, acctFor(F.platform).id, F.platform], { write: true });
     }
-    if (F.saveDefault) await ttSaveDefaults(F.replies);
+    if (F.saveDefault) await ttSaveDefaults(F.replies, F.platform);
     if (TT.F === F) { $("#ttEditor").hidden = true; TT.F = null; }
-    toast(F.id ? "TikTok automation updated" : F.backfill ? "Live. Past comments get their replies within a minute." : "TikTok automation is live");
+    toast(F.id ? `${pName(F.platform)} automation updated` : F.backfill ? "Live. Past comments get their replies within a minute." : `${pName(F.platform)} automation is live`);
     ttLoad();
   } catch (e) {
     F.err = (e && e.message) || "Couldn't save the automation."; F.busy = false;
@@ -2910,13 +2955,15 @@ async function ttSave() {
 }
 async function ttToggle(id, on) {
   if (!isUuid(id)) return;
-  try { await ifSql(`update public.tiktok_automations set active = $1::boolean where id = $2::uuid returning id`, [!!on, id], { write: true }); toast(on ? "TikTok automation is live" : "TikTok automation paused"); }
+  const a = TT.list.find((x) => x.id === id), pn = pName(a ? rowPlat(a) : rpPlat());
+  try { await ifSql(`update public.tiktok_automations set active = $1::boolean where id = $2::uuid returning id`, [!!on, id], { write: true }); toast(on ? `${pn} automation is live` : `${pn} automation paused`); }
   catch (e) { toast((e && e.message) || "Couldn't change it."); }
   ttLoad();
 }
 async function ttDelete(id) {
   if (!isUuid(id)) return;
-  try { await ifSql(`delete from public.tiktok_automations where id = $1::uuid returning id`, [id], { write: true }); toast("TikTok automation deleted"); }
+  const a = TT.list.find((x) => x.id === id), pn = pName(a ? rowPlat(a) : rpPlat());
+  try { await ifSql(`delete from public.tiktok_automations where id = $1::uuid returning id`, [id], { write: true }); toast(`${pn} automation deleted`); }
   catch (e) { toast((e && e.message) || "Couldn't delete it."); }
   ttLoad();
 }
@@ -2936,7 +2983,7 @@ async function ttShowLogs(id) {
     }).join("");
   } catch (e) { $("#auLogBody").innerHTML = `<div class="card bad"><p>${esc((e && e.message) || "Couldn't load the log.")}</p></div>`; }
 }
-function openTTDefaults() { defDraft = ttReplies().slice(); AUP.defFor = "tiktok"; $("#auDefTitle").textContent = "TikTok default replies"; renderAuDefaults(defDraft); $("#auDefaults").hidden = false; }
+function openTTDefaults() { const p = rpPlat(); defDraft = ttReplies(p).slice(); AUP.defFor = p; $("#auDefTitle").textContent = `${pName(p)} default replies`; renderAuDefaults(defDraft); $("#auDefaults").hidden = false; }
 async function enterTT() {
   renderTT();
   if (TT.perm !== "granted" && TT.perm !== "unknown") TT.perm = await ttPermState();
@@ -2945,17 +2992,19 @@ async function enterTT() {
   if (!TT.loaded) ttLoad();
   if (Z.state !== "ok" && Z.state !== "loading") loadAccounts();
 }
-// Instagram / TikTok switch on the Automations tab
+// Instagram / TikTok / YouTube switch on the Automations tab
 const AUP = { plat: "instagram", defFor: "instagram" };
 function setAutoPlat(p) {
   AUP.plat = p;
   $("#auPlat").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.plat === p));
-  $("#auTitle").textContent = p === "tiktok" ? "Comment → reply" : "Comment → DM";
+  $("#auTitle").textContent = isReplyPlat(p) ? "Comment → reply" : "Comment → DM";
   $("#auSub").textContent = p === "tiktok"
     ? "Someone comments a keyword on TikTok, they get a public reply within seconds. Runs 24/7 on your Supabase backend, even with this page closed."
-    : "Someone comments a keyword on Instagram, they get your link in their DMs. Runs 24/7 on Zernio, even with this page closed.";
+    : p === "youtube"
+      ? "Someone comments a keyword on YouTube, they get a public reply, usually within a few minutes. Runs 24/7 on your Supabase backend, even with this page closed."
+      : "Someone comments a keyword on Instagram, they get your link in their DMs. Runs 24/7 on Zernio, even with this page closed.";
   $("#auBanner").innerHTML = ""; $("#auList").innerHTML = "";
-  if (p === "tiktok") enterTT(); else enterAuto();
+  if (isReplyPlat(p)) enterTT(); else enterAuto();
 }
 
 /* ---------- calendar ---------- */
@@ -3015,7 +3064,7 @@ function openPostView(id) {
         <button class="btn sm ghost" id="pvRefresh"${p.remoteId ? "" : " disabled"}>Refresh status</button>
         <button class="btn sm danger" id="pvDel">Remove from calendar</button>
       </div>
-      <p class="hint">Removing it here doesn't delete or cancel anything on Instagram or TikTok. To cancel a scheduled post, delete it in Zernio.</p>
+      <p class="hint">Removing it here doesn't delete or cancel anything on Instagram, TikTok or YouTube. To cancel a scheduled post, delete it in Zernio.</p>
     </div></div>`;
   $("#pvBody").dataset.id = id;
   $("#postView").hidden = false;
@@ -3049,7 +3098,7 @@ function renderAccounts() {
   else if (!Z.wired) h += setupCardHTML("Zernio isn't connected yet");
   else if (Z.state === "error") h += `<div class="card bad"><h4>Couldn't reach Zernio</h4><p>${esc(Z.lastError)}</p></div>`;
   else if (Z.state === "ok") h += `<div class="card soft"><p>Zernio is connected. Add or remove social accounts inside Zernio, then press Refresh.</p></div>`;
-  ["instagram", "tiktok"].forEach((k) => {
+  ["instagram", "tiktok", "youtube"].forEach((k) => {
     const p = PLAT[k], a = acctFor(k);
     const st = !Z.wired ? "Waiting for Zernio" : Z.state === "loading" ? "Checking…" : a ? `Connected as @${esc(a.handle)}` : "Not connected in Zernio";
     h += `<div class="acctrow"><span class="badge ${p.cls}" aria-hidden="true">${p.badge}</span><span class="grow"><b>${p.name}</b><span class="meta">${st}</span></span>${a ? "" : `<a class="btn sm" href="https://zernio.com" target="_blank" rel="noopener">Open Zernio</a>`}</div>`;
@@ -3088,7 +3137,7 @@ function go(view) {
   if (view === "carousels") renderCarousels();
   if (view === "calendar") { renderCalendar(); autoRefresh(); }
   if (view === "video") enterVideo();
-  if (view === "auto") { if (AUP.plat === "tiktok") enterTT(); else enterAuto(); }
+  if (view === "auto") { if (isReplyPlat(AUP.plat)) enterTT(); else enterAuto(); }
   if (view === "studio") renderStudio();
 }
 
@@ -3137,7 +3186,8 @@ function subscribe() {
     const pv = $("#pvBody").dataset.id; if (!$("#postView").hidden && pv) { if (S.posts.some((p) => p.id === pv)) openPostView(pv); else $("#postView").hidden = true; }
   }, onErr);
   S.db.doc("settings/autoreplies").onSnapshot((snap) => { AU.defaults = snap.exists ? snap.data() : null; }, onErr);
-  S.db.doc("settings/ttreplies").onSnapshot((snap) => { TT.defaults = snap.exists ? snap.data() : null; }, onErr);
+  S.db.doc("settings/ttreplies").onSnapshot((snap) => { TT.defaults.tiktok = snap.exists ? snap.data() : null; }, onErr);
+  S.db.doc("settings/ytreplies").onSnapshot((snap) => { TT.defaults.youtube = snap.exists ? snap.data() : null; }, onErr);
   S.db.doc("settings/ttcache").onSnapshot((snap) => { if (snap.exists) ttCacheLoad(snap.data()); }, onErr);
   S.db.doc("settings/main").onSnapshot((snap) => {
     if (snap.exists) S.settings = { ...S.settings, ...snap.data() };
@@ -3345,7 +3395,7 @@ function bind() {
   });
   vv.addEventListener("change", (e) => {
     const t = e.target;
-    if (t.dataset.vplat) { VZ[t.dataset.vplat === "instagram" ? "ig" : "tt"] = t.checked; renderVRight(); }
+    if (t.dataset.vplat) { VZ[{ instagram: "ig", tiktok: "tt", youtube: "yt" }[t.dataset.vplat]] = t.checked; if (VZ.yt && !VZ.ytTitleEdited) VZ.ytTitle = ytAutoTitle(VZ.caption); renderVRight(); }
     else if (t.name === "vpick") { VZ.pick = parseInt(t.value, 10) || 0; updateVideoFoot(); }
     else if (t.id === "vLocal" && t.files && t.files[0]) { if (VZ.localUrl) { try { URL.revokeObjectURL(VZ.localUrl); } catch (err) { /* ignore */ } } VZ.localUrl = URL.createObjectURL(t.files[0]); VZ.localName = t.files[0].name; renderVLeft(); }
     else if (t.id === "vIgFeed") VZ.igFeed = t.checked;
@@ -3354,11 +3404,22 @@ function bind() {
     else if (t.id === "vTtDuet") VZ.ttDuet = t.checked;
     else if (t.id === "vTtStitch") VZ.ttStitch = t.checked;
     else if (t.id === "vTtConsent") { VZ.ttConsent = t.checked; updateVideoFoot(); }
+    else if (t.id === "vYtVis") { VZ.ytVis = t.value; updateVideoFoot(); }
+    else if (t.id === "vYtCat") VZ.ytCat = t.value;
+    else if (t.id === "vYtKids") { VZ.ytKids = t.checked; renderVRight(); }
+    else if (t.id === "vYtAi") VZ.ytAi = t.checked;
     else if (t.id === "vDate" || t.id === "vTime") { VZ[t.id === "vDate" ? "date" : "time"] = t.value; updateVideoFoot(); }
   });
   vv.addEventListener("input", (e) => {
     const t = e.target;
-    if (t.id === "vCap") { VZ.caption = t.value; const n = $("#vCapN"); n.textContent = `${t.value.length.toLocaleString()} / ${V_CAP.toLocaleString()}`; n.classList.toggle("over", t.value.length > V_CAP); updateVideoFoot(); }
+    if (t.id === "vCap") {
+      VZ.caption = t.value; const n = $("#vCapN"); n.textContent = `${t.value.length.toLocaleString()} / ${V_CAP.toLocaleString()}`; n.classList.toggle("over", t.value.length > V_CAP);
+      // The YouTube title follows the caption's first line until it's edited by hand.
+      if (VZ.yt && !VZ.ytTitleEdited) { VZ.ytTitle = ytAutoTitle(t.value); const yi = $("#vYtTitle"); if (yi) yi.value = VZ.ytTitle; const yn = $("#vYtTitleN"); if (yn) yn.textContent = `${VZ.ytTitle.length} / ${YT_TITLE}`; }
+      updateVideoFoot();
+    }
+    else if (t.id === "vYtTitle") { VZ.ytTitle = t.value; VZ.ytTitleEdited = t.value.trim() !== ""; const yn = $("#vYtTitleN"); yn.textContent = `${t.value.length} / ${YT_TITLE}`; yn.classList.toggle("over", t.value.length > YT_TITLE); updateVideoFoot(); }
+    else if (t.id === "vYtFirst") VZ.ytFirst = t.value;
     else if (t.id === "vCover") VZ.coverSec = t.value;
   });
 
@@ -3367,11 +3428,11 @@ function bind() {
   dmBind($("#view-video"), "v", () => VZ.dm, (re) => { if (re) renderVRight(); else updateVideoFoot(); });
 
   // automations
-  $("#auNew").addEventListener("click", () => { if (AUP.plat === "tiktok") openTTEditor(); else openAuEditor(); });
-  $("#auReload").addEventListener("click", () => { if (AUP.plat === "tiktok") { TT.videos = null; ttLoad(); } else { AU.posts = null; auLoad(); } });
-  $("#auDefaultsBtn").addEventListener("click", () => { if (AUP.plat === "tiktok") openTTDefaults(); else openAuDefaults(); });
+  $("#auNew").addEventListener("click", () => { if (isReplyPlat(AUP.plat)) openTTEditor(); else openAuEditor(); });
+  $("#auReload").addEventListener("click", () => { if (isReplyPlat(AUP.plat)) { TT.vids[AUP.plat] = null; ttLoad(); } else { AU.posts = null; auLoad(); } });
+  $("#auDefaultsBtn").addEventListener("click", () => { if (isReplyPlat(AUP.plat)) openTTDefaults(); else openAuDefaults(); });
   $("#auPlat").addEventListener("click", (e) => { const b = e.target.closest("[data-plat]"); if (b && b.dataset.plat !== AUP.plat) setAutoPlat(b.dataset.plat); });
-  // TikTok automations
+  // TikTok + YouTube automations
   $("#auBanner").addEventListener("click", (e) => { if (e.target.closest("#ttAllow")) ttAllow(); });
   $("#auList").addEventListener("click", (e) => {
     const ed = e.target.closest("[data-tt-edit]"); if (ed) { const a = TT.list.find((x) => x.id === ed.dataset.ttEdit); if (a) openTTEditor(ttFormFrom(a)); return; }
@@ -3385,11 +3446,11 @@ function bind() {
     const F = TT.F; if (!F) return;
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.ttTarget) { F.target = b.dataset.ttTarget; renderTTEditor(); if (F.target === "video") ttLoadVideos(); }
-    else if (b.id === "ttVideosReload") { TT.videos = null; TT.videosErr = null; renderTTEditor(); ttLoadVideos(); }
+    else if (b.id === "ttVideosReload") { TT.vids[F.platform] = null; TT.videosErr = null; renderTTEditor(); ttLoadVideos(); }
     else if (b.dataset.ttAny != null) { F.anyComment = b.dataset.ttAny === "1"; if (F.anyComment) F.backfill = false; renderTTEditor(); }
     else if (b.id === "ttReplyAdd") { F.replies.push(""); renderTTEditor(); }
     else if (b.dataset.ttReplyDel != null) { F.replies.splice(+b.dataset.ttReplyDel, 1); renderTTEditor(); }
-    else if (b.id === "ttReplyDefaults") { F.replies = ttReplies().slice(); renderTTEditor(); }
+    else if (b.id === "ttReplyDefaults") { F.replies = ttReplies(F.platform).slice(); renderTTEditor(); }
   });
   ttEd.addEventListener("input", (e) => {
     const F = TT.F, t = e.target; if (!F) return;
@@ -3402,7 +3463,7 @@ function bind() {
   ttEd.addEventListener("change", (e) => {
     const F = TT.F, t = e.target; if (!F) return;
     if (t.id === "ttVideo") {
-      const v = (TT.videos || []).find((x) => x.id === t.value);
+      const v = (TT.vids[F.platform] || []).find((x) => x.id === t.value);
       F.videoId = t.value; F.videoCaption = v ? v.title : (t.value ? F.videoCaption : ""); F.videoCover = v ? v.cover : (t.value ? F.videoCover : "");
       renderTTEditor();
     }
@@ -3472,11 +3533,12 @@ function bind() {
   $("#auDefBody").addEventListener("input", (e) => { const k = e.target.dataset.def; if (k != null) defDraft[+k] = e.target.value; });
   $("#auDefBody").addEventListener("click", (e) => { const b = e.target.closest("[data-def-del]"); if (b) { defDraft.splice(+b.dataset.defDel, 1); renderAuDefaults(defDraft); } });
   $("#auDefAdd").addEventListener("click", () => { if (defDraft.length < 6) { defDraft.push(""); renderAuDefaults(defDraft); } });
-  $("#auDefReset").addEventListener("click", () => { defDraft = (AUP.defFor === "tiktok" ? TT_STARTER : STARTER_REPLIES).slice(); renderAuDefaults(defDraft); });
+  $("#auDefReset").addEventListener("click", () => { defDraft = (REPLY_STARTER[AUP.defFor] || STARTER_REPLIES).slice(); renderAuDefaults(defDraft); });
   $("#auDefSave").addEventListener("click", async () => {
     if (!defDraft.some((r) => r.trim())) { toast("Keep at least one reply."); return; }
-    const ok = AUP.defFor === "tiktok" ? await ttSaveDefaults(defDraft) : await auSaveDefaults(defDraft);
-    if (ok) { $("#auDefaults").hidden = true; toast(AUP.defFor === "tiktok" ? "TikTok default replies saved." : "Default replies saved. New automations will use them."); }
+    const p = AUP.defFor;
+    const ok = isReplyPlat(p) ? await ttSaveDefaults(defDraft, p) : await auSaveDefaults(defDraft);
+    if (ok) { $("#auDefaults").hidden = true; toast(isReplyPlat(p) ? `${pName(p)} default replies saved.` : "Default replies saved. New automations will use them."); }
   });
   $("#auDefClose").addEventListener("click", () => { $("#auDefaults").hidden = true; });
   onBackdrop($("#auDefaults"), () => { $("#auDefaults").hidden = true; });
