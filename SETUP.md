@@ -146,5 +146,6 @@ Saved in the artifact's own storage on claude.ai, tied to that artifact. A new a
 | db collection `posts` | calendar entries |
 | db docs `settings/main`, `settings/autoreplies`, `settings/ttreplies`, `settings/ytreplies` | handle and default replies (Instagram, TikTok, YouTube) |
 | db doc `settings/ttcache` | last loaded TikTok/YouTube rule list, for instant display |
+| db doc `settings/ancache` | last loaded Analytics numbers (30 days, all platforms), for instant display |
 
 The TikTok and YouTube rules themselves are in Supabase (`tiktok_automations`), so they survive a new artifact. The Instagram automations are in Zernio.

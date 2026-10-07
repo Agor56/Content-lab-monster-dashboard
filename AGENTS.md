@@ -11,7 +11,7 @@ Anton's content dashboard. One HTML app (published as a claude.ai artifact) plus
 
 | Path | What | Runs where |
 |---|---|---|
-| `app/carousel-engine.html` | the whole dashboard: carousel studio, Media Bank, video composer, calendar, comment automations | claude.ai artifact `https://claude.ai/artifact/LNtLJQX7FFe4PWaANW3iZS` |
+| `app/carousel-engine.html` | the whole dashboard: carousel studio, Media Bank, video composer, calendar, analytics, comment automations | claude.ai artifact `https://claude.ai/artifact/LNtLJQX7FFe4PWaANW3iZS` |
 | `supabase/functions/tiktok-autoreply/index.ts` | public replies to TikTok and YouTube comments | Supabase Edge Function, project `kbudvqcnmejuoxyncvtq` |
 | `supabase/functions/ig-followup/index.ts` | optional second Instagram DM | Supabase Edge Function, same project |
 | `supabase/sql/schema.sql` | tables, lock-down, secrets, cron for `tiktok-autoreply` | same project |
@@ -43,6 +43,7 @@ Instagram comment → DM automations are not here: Zernio stores and runs them; 
 - **The app file has no doctype.** The artifact platform wraps it; it starts at `<title>`.
 - **Zernio tool calls** from the app go through `call_tool` with Zernio API tool names (for example `posts_create_post`, `comment_automations_create_comment_automation`), and answers come back as Python-style dict strings (`pyParse` in the app).
 - **YouTube posting** sends `title`, `visibility`, `categoryId`, `madeForKids`, `containsSyntheticMedia` and `firstComment` in `platformSpecificData`. YouTube rejects `<` and `>` in titles and descriptions. Vertical videos up to 3 minutes become Shorts automatically. YouTube can't take image carousels.
+- **Analytics needs Zernio's Analytics add-on.** The Analytics view reads `analytics_get_analytics_dashboard` (period totals, previous period, followers, per-day series) and `analytics_get_analytics` (posts published in the period, up to 3 pages of 100). It computes its own engagement per view (likes + comments + shares + saves ÷ views): Zernio's `engagementRate` divides by views on some platforms and by reach on others. Daily values use received attribution, so days when Zernio synced show bursts.
 - **The Supabase project holds unrelated tables** (VoxOps leads, clients, agents…). Touch only the `tiktok_*` and `ig_followup*` objects.
 
 ## Useful checks

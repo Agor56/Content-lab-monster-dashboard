@@ -1,6 +1,6 @@
 # Carousel Engine
 
-Anton's content dashboard: build carousels, post to Instagram, TikTok and YouTube, and run comment automations on all three. Posting and the Instagram automations go through Zernio; the TikTok and YouTube auto-replies and the Instagram second message run on Supabase.
+Anton's content dashboard: build carousels, post to Instagram, TikTok and YouTube, run comment automations on all three, and see how it all performs (Analytics: views, engagement, saves and followers per platform, plus every post's numbers, from Zernio's Analytics add-on). Posting and the Instagram automations go through Zernio; the TikTok and YouTube auto-replies and the Instagram second message run on Supabase.
 
 | | Instagram | TikTok | YouTube |
 |---|---|---|---|
