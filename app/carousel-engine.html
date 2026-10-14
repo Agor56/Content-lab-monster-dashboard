@@ -486,6 +486,66 @@ table.antable{width:100%;border-collapse:collapse;font-size:13px}
 .lock-ic svg{width:20px;height:20px}
 .lockcard h3{max-width:360px}
 .lockcard p{max-width:380px;margin:0}
+
+/* storyboards (review desk) */
+.rv-count{margin-left:auto;font:600 11px var(--mono);background:var(--hl);color:var(--hl-ink);border-radius:999px;padding:1px 7px}
+.shell.collapsed .rv-count{display:none}
+.rv-root{display:flex;flex-direction:column;gap:18px}
+.rv-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.rv-card{display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:center;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;cursor:pointer;box-shadow:var(--shadow-xs);color:var(--ink)}
+.rv-card:hover{border-color:var(--line-strong)}
+.rv-card img,.rv-card .ph{width:64px;height:80px;object-fit:cover;border-radius:6px;background:#1A1E29;display:block}
+.rv-card .t{font-weight:600;overflow-wrap:anywhere}
+.rv-card .sub{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+.rv-st{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;color:var(--ink-2)}
+.rv-st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.rv-st.review{background:var(--hl);border-color:var(--hl);color:var(--hl-ink)}
+.rv-st.changes{color:#B7791F;border-color:color-mix(in srgb,#B7791F 40%,transparent)}
+.rv-st.approved{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.rv-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.rv-meta{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink-2)}
+.rv-meta b{font-weight:600;color:var(--ink)}
+.rv-loop{font-size:13px;padding:10px 12px;border-left:3px solid var(--hl);background:var(--surface-2);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.rv-frames{display:flex;flex-direction:column;gap:12px}
+.rv-fr{display:grid;grid-template-columns:168px minmax(0,1fr);gap:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:var(--shadow-xs)}
+.rv-fr.face{grid-template-columns:110px minmax(0,1fr);background:transparent;border-style:dashed;box-shadow:none}
+.rv-fr.noted{border-color:#B7791F;box-shadow:inset 3px 0 0 #B7791F}
+.rv-fr.keep{box-shadow:inset 3px 0 0 var(--ok)}
+.rv-fr.cut{opacity:.55}
+.rv-thumb img{width:100%;display:block;border-radius:6px;background:#1A1E29}
+.rv-mock{aspect-ratio:4/5;border-radius:6px;padding:14px 12px;display:flex;flex-direction:column;gap:5px;direction:rtl;text-align:right;overflow:hidden;font-family:"Heebo","Rubik",sans-serif}
+.rv-mock.petrol{background:#04252A;color:#F3E1C6}
+.rv-mock.cream{background:#F3E1C6;color:#04252A;border:1px solid var(--line)}
+.rv-mock .h{font-weight:900;font-size:18px;line-height:1.05}
+.rv-mock .s{font-size:11px;line-height:1.25}
+.rv-mock .lab{align-self:flex-start;background:#F4BD16;color:#04252A;font-weight:900;font-size:12px;padding:3px 6px;transform:rotate(-2deg)}
+.rv-body{min-width:0;display:flex;flex-direction:column;gap:8px}
+.rv-fh{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.rv-n{display:inline-grid;place-items:center;min-width:24px;height:24px;border-radius:7px;background:var(--accent);color:var(--accent-ink);font:600 12px var(--mono)}
+.rv-said{font-family:"Heebo","Rubik",sans-serif;font-size:16px;line-height:1.5;margin:0}
+.rv-kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 12px;font-size:13px}
+.rv-kv b{color:var(--ink-3);font-weight:500}
+.rv-kv span{overflow-wrap:anywhere}
+.rv-motion{margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-3)}
+.rv-why{margin:0;font-style:italic;color:var(--ink-2)}
+.rv-warn{margin:0;color:#B7791F;font-weight:600;font-size:13px}
+.rv-refs{display:flex;gap:6px;flex-wrap:wrap}
+.rv-refs img{height:64px;border-radius:4px;border:1px solid var(--line)}
+.rv-verdict{display:flex;gap:6px;flex-wrap:wrap}
+.rv-verdict .btn[aria-pressed="true"][data-rv-v="keep"]{background:var(--ok);border-color:var(--ok);color:#fff}
+.rv-verdict .btn[aria-pressed="true"][data-rv-v="change"]{background:#B7791F;border-color:#B7791F;color:#fff}
+.rv-verdict .btn[aria-pressed="true"][data-rv-v="cut"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rv-saved{font-size:12px;color:var(--ink-3);min-height:1em}
+.rv-bar{position:sticky;bottom:12px;z-index:5;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r);box-shadow:var(--shadow)}
+.rv-bar .acts{display:flex;gap:8px;flex-wrap:wrap}
+.rv-st.brief{color:var(--info);border-color:color-mix(in srgb,var(--info) 40%,transparent)}
+.rv-st.draft{color:var(--ink-3);border-style:dashed}
+.rv-brief{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+.rv-brief .mcard figcaption{gap:6px}
+.rv-yourbrief{font-size:13px;padding:10px 12px;background:var(--surface-2);border-radius:var(--r-sm)}
+.rv-yourbrief pre{white-space:pre-wrap;font-family:"Heebo","Rubik",sans-serif;font-size:14px;margin:8px 0 0}
+@container main (max-width:900px){.rv-brief{grid-template-columns:minmax(0,1fr)}}
+@container main (max-width:640px){.rv-fr,.rv-fr.face{grid-template-columns:minmax(0,1fr)}.rv-fr .rv-thumb{max-width:200px}}
 </style>
 
 <div class="shell" id="shell">
@@ -496,6 +556,9 @@ table.antable{width:100%;border-collapse:collapse;font-size:13px}
   <nav class="sb-nav" aria-label="Sections">
     <div class="sb-group"><div class="sb-label">Discover</div>
       <button class="nav-item tab" data-view="inspo" id="tab-inspo" title="Inspiration Library"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span class="txt">Inspiration Library</span></button>
+    </div>
+    <div class="sb-group"><div class="sb-label">Review</div>
+      <button class="nav-item tab" data-view="review" id="tab-review" title="Storyboards"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg><span class="txt">Storyboards</span><span class="rv-count" id="rvCount" hidden></span></button>
     </div>
     <div class="sb-group"><div class="sb-label">Create</div>
       <button class="nav-item tab on" data-view="studio" id="tab-studio" title="Carousel"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7v10"/><path d="M6 5v14"/><rect width="12" height="18" x="10" y="3" rx="2"/></svg><span class="txt">Carousel</span></button>
@@ -738,6 +801,10 @@ table.antable{width:100%;border-collapse:collapse;font-size:13px}
   </div>
   <div id="anBanner"></div>
   <div id="anBody"></div>
+</section>
+
+<section id="view-review" class="view" hidden>
+  <div id="rvRoot" class="rv-root"></div>
 </section>
 </main>
 </div>
@@ -3386,6 +3453,455 @@ function renderAccounts() {
 }
 function openAccounts() { $("#accounts").hidden = false; renderAccounts(); loadAccounts(); }
 
+/* ---------- storyboards (review desk) ---------- */
+// Claude pushes each reel/carousel storyboard here from its local tools: review_projects/<id> plus
+// review_projects/<id>/frames/r<rev>-<nn>. Anton leaves a note and a Keep / Change / Cut verdict per frame
+// (review_projects/<id>/notes/r<rev>-<nn>, r<rev>-all for the overall note), then sends them back or approves
+// (review_status/<id>). Claude reads the notes when Anton says "check the review desk".
+const RV_STATUS = { draft: "Draft brief", brief: "Waiting for Claude", review: "Waiting for you", changes: "Notes sent", approved: "Approved", rendered: "Done" };
+const RV_KIND = { reel: "Reel", carousel: "Carousel" };
+const RV = { projects: {}, status: {}, loaded: false, filter: "needs", open: null, openRev: null, frames: [], notes: {}, unsubs: [], timers: {}, pending: null };
+try { RV.filter = localStorage.getItem("ce.rvFilter") || "needs"; } catch (e) { /* default */ }
+const rvPad = (i) => String(i).padStart(2, "0");
+const rvSt = (id) => (RV.status[id] && RV.status[id].status) || "review";
+const rvPill = (st) => `<span class="rv-st ${esc(st)}">${esc(RV_STATUS[st] || st)}</span>`;
+const rvAgo = (iso) => { const t = Date.parse(iso); return isNaN(t) ? "" : ago(t); };
+const rvKey = (i) => `r${RV.openRev}-${i < 0 ? "all" : rvPad(i)}`;
+const rvActive = (n) => !!(n && ((n.text || "").trim() || n.verdict === "change" || n.verdict === "cut"));
+
+function rvCounts() {
+  const ids = Object.keys(RV.projects);
+  return { needs: ids.filter((id) => rvSt(id) === "review").length, briefs: ids.filter((id) => ["draft", "brief"].includes(rvSt(id))).length, reel: ids.filter((id) => RV.projects[id].kind === "reel").length,
+    carousel: ids.filter((id) => RV.projects[id].kind === "carousel").length, all: ids.length };
+}
+function rvBadge() { const n = rvCounts().needs, b = $("#rvCount"); b.textContent = n; b.hidden = !n; }
+function renderReview() { if (S.view !== "review") return; if (RV.open) renderRvProject(); else renderRvList(); }
+
+function renderRvList() {
+  const root = $("#rvRoot"), c = rvCounts();
+  if (RV.filter === "needs" && !c.needs && c.all) RV.filter = "all";
+  const order = { review: 0, brief: 1, changes: 2, draft: 3, approved: 4, rendered: 5 };
+  const ids = Object.keys(RV.projects).filter((id) => RV.filter === "all" || (RV.filter === "needs" ? rvSt(id) === "review" : RV.filter === "briefs" ? ["draft", "brief"].includes(rvSt(id)) : RV.projects[id].kind === RV.filter))
+    .sort((a, b) => (order[rvSt(a)] ?? 0) - (order[rvSt(b)] ?? 0) || String(RV.projects[b].updatedAt || "").localeCompare(String(RV.projects[a].updatedAt || "")));
+  let h = `<div class="mhead"><div><h2>Storyboards</h2><span class="meta">Every reel and carousel plan, before anything gets rendered. Leave notes on any frame, then send it back to Claude.</span></div><button class="btn primary" id="rvNewBrief">New carousel brief</button></div>
+    <div class="chips" role="group" aria-label="Filter storyboards">${[["needs", "Needs you"], ["briefs", "Briefs"], ["reel", "Reels"], ["carousel", "Carousels"], ["all", "All"]].map(([k, l]) =>
+      `<button class="chip${RV.filter === k ? " on" : ""}" data-rv-filter="${k}" aria-pressed="${RV.filter === k}">${l}<span class="n">${c[k]}</span></button>`).join("")}</div>`;
+  if (!RV.loaded) h += `<p class="hint">Loading storyboards…</p>`;
+  else if (!c.all) h += `<div class="empty"><b>No storyboards yet.</b><br>Claude adds one here each time it plans a reel or a carousel, before rendering it.</div>`;
+  else if (!ids.length) h += `<div class="empty">${RV.filter === "needs" ? "Nothing is waiting for you." : "Nothing in this view."}</div>`;
+  else h += `<div class="rv-list">${ids.map((id) => {
+    const p = RV.projects[id], st = rvSt(id), at = (RV.status[id] && RV.status[id].at) || p.updatedAt;
+    return `<button class="rv-card" data-rv-open="${esc(id)}" aria-label="Open ${esc(p.title || id)}">${p.cover ? `<img src="${esc(p.cover)}" alt="">` : `<span class="ph"></span>`}
+      <span><span class="t">${esc(p.title || (p.rev ? id : "Untitled brief"))}</span><span class="sub">${rvPill(st)}<span class="meta mono">${p.rev ? `${esc(RV_KIND[p.kind] || p.kind || "")} · round ${esc(p.rev)} · ${esc(p.frameCount || 0)} frames` : `Brief · ${((p.assets || []).length)} images · ${((p.refs || []).length)} refs`}</span></span>
+      <span class="meta mono" style="display:block;margin-top:4px">${esc(rvAgo(at))}</span></span></button>`;
+  }).join("")}</div>`;
+  root.innerHTML = h;
+}
+
+function rvOpen(id) {
+  RV.unsubs.forEach((u) => u()); RV.unsubs = []; RV.frames = []; RV.notes = {};
+  RV.open = id || null; RV.openRev = id && RV.projects[id] ? RV.projects[id].rev : null;
+  if (RV.open && S.db && RV.openRev) {
+    const base = "review_projects/" + id;
+    const onErr = () => toast("Couldn't load this storyboard. Reload the page.");
+    RV.unsubs.push(S.db.collection(base + "/frames").where("rev", "==", RV.openRev).onSnapshot((snap) => {
+      RV.frames = snap.docs.map((d) => d.data()).sort((a, b) => a.i - b.i); if (S.view === "review") renderRvProject();
+    }, onErr));
+    RV.unsubs.push(S.db.collection(base + "/notes").where("rev", "==", RV.openRev).onSnapshot((snap) => {
+      snap.docs.forEach((d) => { if (!RV.timers[d.id]) RV.notes[d.id] = d.data(); });
+      rvPaintAll();
+    }, onErr));
+  }
+  if (S.view === "review") { renderReview(); window.scrollTo(0, 0); }
+}
+
+function rvFrameHTML(f) {
+  const key = rvKey(f.i), face = f.kind === "face";
+  let thumb = "";
+  if (f.thumb) thumb = `<img src="${esc(f.thumb)}" alt="${esc(f.title || "")}" loading="lazy">`;
+  else if (f.mock) {
+    const m = f.mock;
+    thumb = `<div class="rv-mock ${m.ground === "cream" ? "cream" : "petrol"}">${m.kicker ? `<div class="s">${esc(m.kicker)}</div>` : ""}${m.headline ? `<div class="h">${esc(m.headline).replace(/\n/g, "<br>")}</div>` : ""}${m.sub ? `<div class="s">${esc(m.sub)}</div>` : ""}${m.label ? `<div class="lab">${esc(m.label)}</div>` : ""}${m.body ? `<div class="s">${esc(m.body)}</div>` : ""}</div>`;
+  }
+  const kv = (f.onscreen || []).length ? `<div class="rv-kv">${f.onscreen.map(([k, v]) => `<b>${esc(k)}</b><span dir="auto">${esc(v)}</span>`).join("")}</div>` : "";
+  const verdict = face ? "" : `<div class="rv-verdict" role="group" aria-label="Quick verdict">${[["keep", "Keep"], ["change", "Change"], ["cut", "Cut it"]].map(([v, l]) =>
+    `<button class="btn sm" data-rv-v="${v}" data-rv-i="${f.i}" aria-pressed="false">${l}</button>`).join("")}</div>`;
+  return `<article class="rv-fr${face ? " face" : ""}" data-rv-key="${esc(key)}">
+    <div class="rv-thumb">${thumb}</div>
+    <div class="rv-body">
+      <div class="rv-fh">${face ? "" : `<span class="rv-n">${esc(f.n ?? f.i + 1)}</span>`}<b>${esc(f.title || "")}</b>${f.time ? `<span class="meta mono">${esc(f.time)} · ${esc(f.dur)}s</span>` : ""}</div>
+      ${f.why ? `<p class="rv-why">${esc(f.why)}</p>` : ""}
+      ${f.spoken ? `<p class="rv-said" dir="rtl">${esc(f.spoken)}</p>` : ""}
+      ${f.copy ? `<p class="rv-said" dir="rtl">${esc(f.copy)}</p>` : ""}
+      ${kv}
+      ${f.visual ? `<div><span class="meta">Visual:</span> ${esc(f.visual)}</div>` : ""}
+      ${(f.motion || []).length ? `<ul class="rv-motion">${f.motion.map((m) => `<li>${esc(m)}</li>`).join("")}</ul>` : ""}
+      ${(f.uses || []).length ? `<div><span class="meta">Uses your image:</span><div class="rv-refs" style="margin-top:4px">${f.uses.map((u) => `<img src="/_blob/${esc(u.assetId)}" alt="${esc(u.name || "")}" title="${esc(u.note || u.name || "")}">`).join("")}</div></div>` : ""}
+      ${(f.refs || []).length ? `<div class="rv-refs">${f.refs.map((r) => `<img src="${esc(r.thumb)}" alt="${esc(r.name)}" title="${esc(r.name)}">`).join("")}</div>` : ""}
+      ${(f.warn || []).length ? `<p class="rv-warn">⚠ ${f.warn.map(esc).join(" · ")}</p>` : ""}
+      ${verdict}
+      <textarea class="input" rows="2" dir="auto" id="rv-note-${esc(key)}" data-rv-note="${f.i}" placeholder="${face ? "Note on this stretch (optional)" : "What should change here? (optional)"}" aria-label="Note for ${esc(f.title || "frame")}"></textarea>
+      <div class="rv-saved" aria-live="polite" data-rv-saved="${esc(key)}"></div>
+    </div></article>`;
+}
+
+function renderRvProject() {
+  const root = $("#rvRoot"), id = RV.open, p = RV.projects[id] || (RV.draft && RV.draft.id === id ? { rev: 0 } : null);
+  if (!p) { RV.open = null; renderRvList(); return; }
+  if (!p.rev) { renderRvBrief(); return; }
+  const b = p.brief && (p.brief.script || "").trim() ? p.brief : null;
+  const allKey = rvKey(-1);
+  root.innerHTML = `<div><button class="btn ghost sm" id="rvBack">← All storyboards</button></div>
+    <div class="rv-head"><h2 dir="auto">${esc(p.title || id)}</h2><span id="rvPill">${rvPill(rvSt(id))}</span><span class="meta mono">${esc(RV_KIND[p.kind] || p.kind || "")} · round ${esc(p.rev)} · updated ${esc(rvAgo(p.updatedAt))}</span></div>
+    ${(p.meta || []).length ? `<div class="rv-meta">${p.meta.map(([k, v]) => `<span><b>${esc(k)}:</b> <span dir="auto">${esc(v)}</span></span>`).join("")}</div>` : ""}
+    ${(p.loop || []).length ? `<div class="rv-loop"><b>Cover loop:</b> ${p.loop.map(esc).join(" · ")}</div>` : ""}
+    ${b ? `<details class="rv-yourbrief"><summary>Your brief</summary><pre dir="auto">${esc(b.hook ? b.hook + "\n\n" + b.script : b.script)}</pre>${[...(p.assets || []), ...(p.refs || [])].length ? `<div class="rv-refs" style="margin-top:8px">${[...(p.assets || []), ...(p.refs || [])].map((m) => `<img src="/_blob/${esc(m.assetId)}" alt="${esc(m.name || "")}" title="${esc(m.note || m.name || "")}">`).join("")}</div>` : ""}</details>` : ""}
+    <div class="field"><label class="lbl" for="rv-note-${esc(allKey)}">Overall notes</label>
+      <textarea class="input" rows="2" dir="auto" id="rv-note-${esc(allKey)}" data-rv-note="-1" placeholder="Anything about the whole project (optional)"></textarea>
+      <div class="rv-saved" aria-live="polite" data-rv-saved="${esc(allKey)}"></div></div>
+    ${RV.frames.length ? `<div class="rv-frames">${RV.frames.map(rvFrameHTML).join("")}</div>` : `<p class="hint">Loading frames…</p>`}
+    <div class="rv-bar"><span id="rvInfo"></span><div class="acts"><button class="btn" id="rvApprove">Approve as is</button><button class="btn primary" id="rvgRedo" hidden>Redo with my notes</button><button class="btn primary" id="rvSend">Send notes to Claude</button></div></div>`;
+  rvPaintAll(true);
+}
+
+// Fill notes and verdicts into the rendered cards without re-rendering (keeps the caret where Anton is typing).
+function rvPaintAll(force) {
+  if (!RV.open || S.view !== "review") return;
+  document.querySelectorAll("#rvRoot [data-rv-note]").forEach((ta) => {
+    const key = rvKey(+ta.dataset.rvNote), n = RV.notes[key] || {};
+    if ((force || document.activeElement !== ta) && ta.value !== (n.text || "")) ta.value = n.text || "";
+    rvPaintCard(key);
+  });
+  rvPaintBar();
+}
+function rvPaintCard(key) {
+  const card = document.querySelector(`#rvRoot [data-rv-key="${CSS.escape(key)}"]`); if (!card) return;
+  const n = RV.notes[key] || {};
+  card.classList.toggle("noted", !!(n.text || "").trim() || n.verdict === "change");
+  card.classList.toggle("keep", n.verdict === "keep" && !(n.text || "").trim());
+  card.classList.toggle("cut", n.verdict === "cut");
+  card.querySelectorAll("[data-rv-v]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.rvV === n.verdict)));
+}
+function rvPaintBar() {
+  const info = $("#rvInfo"); if (!info || !RV.open || RVG.busy) return;
+  const p = RV.projects[RV.open], st = rvSt(RV.open);
+  const noted = Object.entries(RV.notes).filter(([k, n]) => k.startsWith(`r${RV.openRev}-`) && rvActive(n)).length;
+  const pill = $("#rvPill"); if (pill) pill.innerHTML = rvPill(st);
+  if (st === "changes" || st === "approved") {
+    const say = st === "changes" ? `Check the review desk: ${p.title}` : p.plan ? `Render the approved carousel: ${p.title}` : `${p.title} is approved on the review desk`;
+    info.innerHTML = `<b>${st === "changes" ? "Sent." : "Approved."}</b> Now tell Claude: <span class="mono" id="rvSay">“${esc(say)}”</span> <button class="btn ghost sm" id="rvCopy" data-say="${esc(say)}">Copy</button>`;
+  } else if (st === "rendered") info.textContent = "Done: this one is rendered and delivered.";
+  else info.textContent = noted ? `${noted} note${noted > 1 ? "s" : ""} on this round` : "No notes yet. Approve it if everything works.";
+  const send = $("#rvSend"), appr = $("#rvApprove");
+  send.disabled = !noted || st === "changes" || st === "rendered";
+  send.textContent = st === "changes" ? "Notes sent" : "Send notes to Claude";
+  appr.textContent = st === "approved" ? "Approved" : st === "changes" ? "Reopen" : "Approve as is";
+  appr.disabled = st === "approved" || st === "rendered";
+  // Carousels planned in the page are redone in the page; Claude Code only renders them after approval.
+  const redo = $("#rvgRedo");
+  if (redo) { redo.hidden = !p.plan; send.hidden = !!p.plan; redo.disabled = !noted || st === "approved" || st === "rendered"; }
+  if (p.plan && st === "review") info.textContent = noted ? `${noted} note${noted > 1 ? "s" : ""}. Redo applies them in about a minute.` : "No notes yet. Approve it if everything works.";
+}
+function rvSave(i, patch) {
+  const key = rvKey(i), id = RV.open, rev = RV.openRev;
+  RV.notes[key] = Object.assign({}, RV.notes[key], patch, { i, rev });
+  rvPaintCard(key); rvPaintBar();
+  const saved = document.querySelector(`#rvRoot [data-rv-saved="${CSS.escape(key)}"]`); if (saved) saved.textContent = "Saving…";
+  clearTimeout(RV.timers[key]);
+  RV.timers[key] = setTimeout(async () => {
+    const n = RV.notes[key];
+    try {
+      await S.db.doc(`review_projects/${id}/notes/${key}`).set({ rev, i, text: n.text || "", verdict: n.verdict || "", at: new Date().toISOString() });
+      if (saved && saved.isConnected) saved.textContent = "Saved";
+    } catch (e) { if (saved && saved.isConnected) saved.textContent = "Couldn't save. Check your connection, then type again."; dbErr(e); }
+    finally { delete RV.timers[key]; }
+  }, 700);
+}
+async function rvSetStatus(status) {
+  const id = RV.open; if (!id || !S.db) return;
+  if (await dbSet("review_status/" + id, { status, rev: RV.openRev, at: new Date().toISOString() }))
+    toast(status === "changes" ? "Notes sent. Tell Claude to check the review desk." : status === "approved" ? "Approved. Tell Claude to build it." : "Reopened for review");
+}
+function rvAfter(statusOnly) {
+  rvBadge();
+  if (RV.pending && RV.projects[RV.pending]) { const p = RV.pending; RV.pending = null; rvOpen(p); return; }
+  if (RV.open && RV.projects[RV.open] && RV.projects[RV.open].rev !== RV.openRev) { rvOpen(RV.open); return; }
+  if (S.view !== "review") return;
+  const op = RV.open && RV.projects[RV.open];
+  if (RV.open && (!op || !op.rev)) { rvbPaintBar(); return; } // brief form: never re-render under Anton's typing
+  if (RV.open) { if (statusOnly) rvPaintBar(); else renderRvProject(); } else renderRvList();
+}
+// ---------- carousel briefs: script + images in, Claude builds the carousel ----------
+// A brief is a review_projects/<id> doc at rev 0 with { brief: {script, hook, keyword, slides, notes}, assets, refs }
+// (images live in the asset store; rows keep the asset id). review_status: draft → brief ("Waiting for Claude").
+// Claude reads it when Anton says "make the carousel from my brief", downloads the images, builds the storyboard
+// in his design system and pushes round 1 into the same project.
+const RVB_FIELDS = ["title", "hook", "script", "keyword", "slides", "notes"];
+function rvbFrom(p, id) {
+  const b = (p && p.brief) || {};
+  return { id, title: (p && p.title) || "", hook: b.hook || "", script: b.script || "", keyword: b.keyword || "", slides: b.slides || "", notes: b.notes || "",
+    assets: ((p && p.assets) || []).slice(), refs: ((p && p.refs) || []).slice() };
+}
+async function rvbNew() {
+  if (!S.db) { toast("Saving isn't available in this view. Open the page in Claude."); return; }
+  const id = "c-" + uid(), now = new Date().toISOString();
+  RV.draft = rvbFrom(null, id);
+  const ok = await dbSet("review_projects/" + id, { kind: "carousel", title: "", rev: 0, frameCount: 0, brief: {}, assets: [], refs: [], createdAt: now, updatedAt: now });
+  if (!ok) { RV.draft = null; return; }
+  await dbSet("review_status/" + id, { status: "draft", rev: 0, at: now });
+  rvOpen(id);
+  setTimeout(() => { const t = $("#rvbTitle"); if (t) t.focus(); }, 50);
+}
+let rvbT = null;
+function rvbSave(now) {
+  const d = RV.draft; if (!d) return;
+  clearTimeout(rvbT);
+  const st = $("#rvbSaved"); if (st) st.textContent = "Saving…";
+  rvbT = setTimeout(async () => {
+    const ok = await dbUpdate("review_projects/" + d.id, { title: d.title.trim(), brief: { hook: d.hook, script: d.script, keyword: d.keyword.trim(), slides: d.slides, notes: d.notes },
+      assets: d.assets, refs: d.refs, updatedAt: new Date().toISOString() });
+    const s2 = $("#rvbSaved"); if (s2) s2.textContent = ok ? "Saved" : "Couldn't save. Check your connection.";
+  }, now ? 0 : 700);
+}
+function rvbImgs(kind) {
+  const d = RV.draft, list = d[kind];
+  if (!list.length) return `<p class="hint">${kind === "assets" ? "No images yet." : "No references yet."}</p>`;
+  return `<div class="mgrid small">${list.map((m, k) => `<figure class="mcard"><img src="/_blob/${esc(m.assetId)}" loading="lazy" alt="${esc(m.name || "")}">
+    <figcaption>${kind === "assets" ? `<input class="input sm" dir="auto" style="width:100%" data-rvb-note="${k}" value="${esc(m.note || "")}" placeholder="What is it? Where should it go?" aria-label="Note for ${esc(m.name || "image")}">` : `<span class="nm" title="${esc(m.name || "")}">${esc(m.name || "Reference")}</span>`}
+    <button class="btn ghost sm" data-rvb-del="${kind}:${k}" style="align-self:flex-start">Remove</button></figcaption></figure>`).join("")}</div>`;
+}
+function rvbPaintImgs(kind) { const el = $(kind === "assets" ? "#rvbAssets" : "#rvbRefs"); if (el) el.innerHTML = rvbImgs(kind); }
+function renderRvBrief() {
+  const id = RV.open, p = RV.projects[id];
+  if (!RV.draft || RV.draft.id !== id) RV.draft = rvbFrom(p, id);
+  const d = RV.draft, up = !!S.assets;
+  const drop = (kind) => `<div class="drop" data-rvb-drop="${kind}"><div class="drop-ic" aria-hidden="true">↑</div>
+    <div class="drop-txt"><b>Drop images here</b><div class="meta" id="rvbUp-${kind}">${up ? "Or browse. JPG, PNG or WebP." : "Uploads aren't available in this view."}</div></div>
+    <button class="btn" type="button" data-rvb-browse="${kind}"${up ? "" : " disabled"}>Browse</button>
+    <input type="file" id="rvbFile-${kind}" accept="image/jpeg,image/png,image/webp" multiple hidden></div>`;
+  $("#rvRoot").innerHTML = `<div><button class="btn ghost sm" id="rvBack">← All storyboards</button></div>
+    <div class="rv-head"><h2>${d.title.trim() ? esc(d.title) : "New carousel brief"}</h2><span id="rvPill">${rvPill(rvSt(id))}</span><span class="meta" id="rvbSaved"></span></div>
+    <p class="hint">Paste the script and add your images, then press Generate carousel. Claude writes the slides in your design system and the storyboard appears here in about a minute. Nothing is rendered until you approve.</p>
+    <div class="rv-brief">
+      <div class="panel"><div class="group">
+        <label class="field" for="rvbTitle"><span>Carousel name</span><input id="rvbTitle" class="input" dir="auto" data-rvb="title" value="${esc(d.title)}" placeholder="e.g. 388 skills for solo founders"></label>
+        <label class="field" for="rvbHook"><span>Hook <b>optional</b></span><input id="rvbHook" class="input" dir="auto" data-rvb="hook" value="${esc(d.hook)}" placeholder="Leave empty and the script's opening line is the hook"></label>
+        <label class="field" for="rvbScript"><span>Script</span><textarea id="rvbScript" class="input copy" rows="14" dir="auto" data-rvb="script" placeholder="Paste the full script, hook included">${esc(d.script)}</textarea></label>
+        <div class="grid2"><label class="field" for="rvbKeyword"><span>Comment keyword <b>for the CTA</b></span><input id="rvbKeyword" class="input" dir="auto" data-rvb="keyword" value="${esc(d.keyword)}" placeholder="e.g. סקילים"></label>
+          <label class="field" for="rvbSlides"><span>Slides <b>optional</b></span><input id="rvbSlides" class="input" type="number" min="3" max="20" inputmode="numeric" data-rvb="slides" value="${esc(d.slides)}" placeholder="7–9"></label></div>
+        <label class="field" for="rvbNotes"><span>Notes for Claude <b>optional</b></span><textarea id="rvbNotes" class="input" rows="3" dir="auto" data-rvb="notes" placeholder="e.g. put my dashboard screenshot on slide 3, my photo on the cover">${esc(d.notes)}</textarea></label>
+      </div></div>
+      <div class="panel">
+        <div class="group"><span class="lbl">Images to use on the slides</span>
+          <p class="hint">Screenshots, photos of you, product shots. Claude looks at each one and places what fits the script. A short note helps.</p>
+          ${drop("assets")}<div id="rvbAssets">${rvbImgs("assets")}</div></div>
+        <div class="group"><span class="lbl">Reference images</span>
+          <p class="hint">Style or idea only (a layout you liked, a visual metaphor). Claude redraws the idea in your design system and never pastes these onto slides.</p>
+          ${drop("refs")}<div id="rvbRefs">${rvbImgs("refs")}</div></div>
+      </div>
+    </div>
+    <div class="rv-bar"><span id="rvInfo"></span><div class="acts"><button class="btn danger" id="rvbDelete">Delete brief</button><button class="btn primary" id="rvbGen">Generate carousel</button></div></div>`;
+  rvbPaintBar();
+}
+function rvbPaintBar() {
+  const info = $("#rvInfo"), d = RV.draft; if (!info || !d || RVG.busy) return;
+  const pill = $("#rvPill"); if (pill) pill.innerHTML = rvPill(rvSt(d.id));
+  const miss = !d.script.trim() ? "Paste the script to generate." : !d.title.trim() ? "Give it a name to generate." : "";
+  info.textContent = miss || `${d.assets.length} image${d.assets.length === 1 ? "" : "s"} to use · ${d.refs.length} reference${d.refs.length === 1 ? "" : "s"} · takes about a minute`;
+  const g = $("#rvbGen"); if (g) g.disabled = !!miss;
+}
+async function rvbUpload(kind, files) {
+  files = [...files].filter((f) => f.type.startsWith("image/")); if (!files.length) return;
+  const d = RV.draft; if (!d) return;
+  if (!S.assets) { toast("Uploads aren't available in this view."); return; }
+  const meta = $("#rvbUp-" + kind), orig = meta ? meta.textContent : ""; let ok = 0; const failed = [];
+  for (let i = 0; i < files.length; i++) {
+    if (meta) meta.textContent = `Uploading ${i + 1} of ${files.length}: ${files[i].name}`;
+    try { const p = await prepImage(files[i]); const res = await S.assets.upload(p.blob, { type: p.type }); d[kind].push({ assetId: res.id, name: files[i].name, note: "", w: p.w, h: p.h }); ok++; }
+    catch (e) { failed.push(files[i].name); if (e && e.code === "rate_limited") await new Promise((r) => setTimeout(r, 2500)); }
+  }
+  if (meta) meta.textContent = orig;
+  rvbPaintImgs(kind); rvbPaintBar(); rvbSave(true);
+  toast(failed.length ? `Added ${ok}. Couldn't add: ${failed.slice(0, 3).join(", ")}` : `Added ${ok} image${ok === 1 ? "" : "s"}`);
+}
+async function rvbDeleteBrief() {
+  const d = RV.draft; if (!d) return;
+  for (const m of [...d.assets, ...d.refs]) { try { if (S.assets) await S.assets.delete(m.assetId); } catch (e) { /* already gone */ } }
+  await dbDel("review_status/" + d.id); await dbDel("review_projects/" + d.id);
+  RV.draft = null; rvOpen(null); toast("Brief deleted");
+}
+function bindBrief() {
+  const root = $("#rvRoot");
+  root.addEventListener("click", (e) => {
+    if (e.target.closest("#rvNewBrief")) { rvbNew(); return; }
+    if (e.target.closest("#rvbGen")) { rvgGenerate(); return; }
+    if (e.target.closest("#rvgRedo")) { rvgRedo(); return; }
+    if (e.target.closest("#rvgStop")) { if (RVG.ctl) RVG.ctl.abort(); return; }
+    const br = e.target.closest("[data-rvb-browse]"); if (br) { $("#rvbFile-" + br.dataset.rvbBrowse).click(); return; }
+    const del = e.target.closest("[data-rvb-del]");
+    if (del && RV.draft) { const [kind, k] = del.dataset.rvbDel.split(":"); const m = RV.draft[kind][+k]; RV.draft[kind].splice(+k, 1); rvbPaintImgs(kind); rvbPaintBar(); rvbSave(true); if (m && S.assets) S.assets.delete(m.assetId).catch(() => {}); return; }
+    if (e.target.closest("#rvbSend") && RV.draft) {
+      const st = rvSt(RV.draft.id), next = st === "brief" ? "draft" : "brief";
+      rvbSave(true);
+      dbSet("review_status/" + RV.draft.id, { status: next, rev: 0, at: new Date().toISOString() }).then((ok) => { if (ok) toast(next === "brief" ? "Sent. Tell Claude to make the carousel from your brief." : "Taken back. Edit it and send again."); });
+      return;
+    }
+    const x = e.target.closest("#rvbDelete"); if (x) armed(x, "Delete it and its images?", rvbDeleteBrief);
+  });
+  root.addEventListener("input", (e) => {
+    const t = e.target, d = RV.draft; if (!d) return;
+    if (t.dataset.rvb) { d[t.dataset.rvb] = t.value; rvbSave(); rvbPaintBar(); if (t.dataset.rvb === "title") { const h2 = root.querySelector(".rv-head h2"); if (h2) h2.textContent = t.value.trim() || "New carousel brief"; } }
+    else if (t.dataset.rvbNote != null) { const m = d.assets[+t.dataset.rvbNote]; if (m) { m.note = t.value; rvbSave(); } }
+  });
+  root.addEventListener("change", (e) => { const t = e.target; if (t.id && t.id.startsWith("rvbFile-")) { rvbUpload(t.id.slice(8), t.files); t.value = ""; } });
+  ["dragenter", "dragover"].forEach((ev) => root.addEventListener(ev, (e) => { const z = e.target.closest("[data-rvb-drop]"); if (z) { e.preventDefault(); z.classList.add("over"); } }));
+  ["dragleave", "drop"].forEach((ev) => root.addEventListener(ev, (e) => { const z = e.target.closest("[data-rvb-drop]"); if (z) { e.preventDefault(); z.classList.remove("over"); } }));
+  root.addEventListener("drop", (e) => { const z = e.target.closest("[data-rvb-drop]"); if (z && e.dataTransfer && e.dataTransfer.files) rvbUpload(z.dataset.rvbDrop, e.dataTransfer.files); });
+}
+
+// ---------- Generate carousel (in the page, through Claude) ----------
+// The brief (script + images) goes to Claude with a compact copy of Anton's carousel rules (the carousel-antongor
+// skill + his content rules). Claude returns a slide plan; the page writes it as the next storyboard round. Notes on
+// a round can be applied the same way ("Redo with my notes"). The final artwork is rendered later in Claude Code
+// from project.plan, because the design-system kit runs on Anton's Mac.
+const RVG_RULES = `You plan Instagram carousels for Anton Gor, an Israeli creator who posts about AI tools and automation for founders, freelancers and small-business owners. Slides are in natural Israeli Hebrew (never a literal translation; product names stay in English letters).
+
+COPY RULES
+- Slide 1 is the hook: pain first, two beats (the gap, then what it costs). Headline 2 lines max, one short sub-line, and the punch phrase goes on the yellow label.
+- One idea per slide. Short lines a person would say out loud. At most one slang word in the whole carousel. Serious slides stay joke-free.
+- Curator voice: never claim Anton used, built or tested something unless the script says so.
+- Facts, numbers, names and quotes come only from the script. Never invent results.
+- The last slide is one clear action: comment the keyword (exactly as given) on the big yellow label, with a hand-drawn arrow. No "follow for more".
+- 7 to 9 slides unless a number is given.
+
+DESIGN SYSTEM (Anton Gor's): 1080x1350, right-to-left. Grounds alternate petrol (#04252A) and cream (#F3E1C6); the cover and the last slide are petrol. Yellow (#F4BD16) is the single focal accent per slide: one torn yellow label or one hand-drawn mark. Everything looks hand-made and printed: torn paper notes with tape, a torn yellow label for the phrase to remember, worn printed road signs (diamond warning sign, arrow sign, street-name plate, round no-entry sign) for direction / dead ends / choices, "שלום, אני" name-tag stickers for roles or personas, a halftone burst behind a big number or overload, hand-drawn yellow marks (arrow, underline, strike-through, circle), Anton's real screenshots printed on paper and taped, Anton's photo cut out as a die-cut paper sticker. Never: emoji, glow, gradients, robots or brains, fake app UI, stock-photo strangers.
+COVER: an editorial collage, never an ad. A dense wall of objects that carry the idea, overlapping and bleeding off the edges; the hook is written on a torn paper note taped on top; the punch is on a yellow label slapped onto the note's edge; if a photo of Anton is given, he goes on as a paper sticker, second in importance; other objects are dimmed. A small hand-drawn "החליקו" swipe tab with a yellow arrow sits bottom-right.
+COVER LOOP (1.5 s, for a Live Photo): the background objects swing on their pins in a breeze, the hook note's loose bottom edge lifts, a torn paper scrap blows across behind the note, the swipe arrow nudges right. Say which objects sway and where the scrap flies.
+
+IMAGES: the first images are Anton's ASSETS (to place on slides, with his notes). Any images after them are REFERENCES: style or idea only, never placed on a slide; rebuild their idea with the drawn objects above. Use an asset where it helps engagement most (proof, a real screenshot as a receipt, Anton's face on the cover). Skip assets that are blurry or don't fit, and say why.`;
+
+const RVG_SHAPE = `Return JSON only, exactly this shape:
+{"keyword": "the CTA keyword", "slides": [{"role": "hook|point|proof|cta", "ground": "petrol|cream", "kicker": "", "headline": "line 1\\nline 2", "sub": "", "label": "the yellow phrase", "body": "", "visual": "English, 1-2 sentences: which drawn objects or which asset, and where on the slide", "assets": [1], "why": "English, one short sentence: what this slide does"}], "loop": {"moves": ["English, what moves"], "gust": "English, where the paper scrap flies"}, "unused": [{"asset": 2, "reason": "English"}], "notes": "one English sentence on your main choices"}
+Empty strings for fields a slide doesn't use. "assets" lists asset numbers used on that slide (empty if none).`;
+
+const RVG = { busy: false, ctl: null, t0: 0, tick: null };
+function rvgChecks(sl, i, n, kw) {
+  const out = [], hl = String(sl.headline || "").split("\n").filter(Boolean);
+  if (i === 0 && hl.length > 2) out.push("Hook headline is over 2 lines");
+  if (hl.some((l) => l.length > 18)) out.push("A headline line is long for the slide width");
+  if (i === n - 1 && kw && !JSON.stringify(sl).includes(kw)) out.push(`The CTA doesn't show the keyword "${kw}"`);
+  if (/[\u{1F300}-\u{1FAFF}]/u.test(JSON.stringify(sl))) out.push("Contains emoji");
+  return out;
+}
+async function rvgBlob(assetId) {
+  const r = await fetch("/_blob/" + assetId); if (!r.ok) throw new Error("image");
+  const bmp = await createImageBitmap(await r.blob());
+  const k = Math.min(1, 1280 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height); bmp.close && bmp.close();
+  return await new Promise((res) => c.toBlob(res, "image/jpeg", 0.85));
+}
+function rvgBusy(on, label) {
+  RVG.busy = on; clearInterval(RVG.tick);
+  const info = $("#rvInfo");
+  if (on) {
+    RVG.t0 = Date.now();
+    const upd = () => { const i = $("#rvInfo"); if (i) i.innerHTML = `<b>${esc(label)}</b> <span class="mono">${Math.round((Date.now() - RVG.t0) / 1000)}s</span> <button class="btn ghost sm" id="rvgStop">Stop</button>`; };
+    upd(); RVG.tick = setInterval(upd, 1000);
+  } else if (info) info.textContent = "";
+  document.querySelectorAll("#rvbGen,#rvgRedo,#rvApprove,#rvbDelete").forEach((b) => { b.disabled = on; });
+}
+// Ask Claude for a plan. prev + notes = a redo of an existing round.
+async function rvgRun(id, brief, assets, refs, prev, notes) {
+  if (!S.sample) { toast("Claude isn't available in this view. Open the page in Claude."); return null; }
+  const lim = await S.sample.limits().catch(() => null);
+  const max = lim && lim.images ? lim.images.maxCount : 0;
+  const imgs = [...assets.map((m) => ({ m, kind: "asset" })), ...refs.map((m) => ({ m, kind: "ref" }))].slice(0, max);
+  const blobs = [];
+  for (const x of imgs) { try { blobs.push(await rvgBlob(x.m.assetId)); } catch (e) { blobs.push(null); } }
+  const sent = imgs.filter((_, k) => blobs[k]), nA = sent.filter((x) => x.kind === "asset").length;
+  let p = RVG_RULES + "\n\n";
+  p += sent.length ? `IMAGES ATTACHED: ${sent.map((x, k) => k < nA ? `image ${k + 1} = asset ${k + 1} ("${x.m.name}"${x.m.note ? `, Anton's note: ${x.m.note}` : ""})` : `image ${k + 1} = reference "${x.m.name}"`).join("; ")}.\n` : "No images attached.\n";
+  if (imgs.length < assets.length + refs.length) p += `(Only ${sent.length} images could be sent this time; the rest were left out.)\n`;
+  p += `\nBRIEF\nName: ${brief.title || ""}\nHook (if given): ${brief.hook || "(use the script's opening)"}\nComment keyword for the CTA: ${brief.keyword || "(pick a short one from the script and say so in notes)"}\nSlides wanted: ${brief.slides || "7-9"}\nAnton's notes: ${brief.notes || "(none)"}\nScript:\n"""\n${brief.script}\n"""\n`;
+  if (prev) p += `\nTHIS IS A REDO. The current plan:\n${JSON.stringify(prev)}\n\nAnton's notes on it (slide numbers start at 1; "keep" means leave that slide as it is, "cut" means remove it):\n${notes}\nApply every note. Leave slides without notes as they are unless a note says otherwise. Return the full updated plan.\n`;
+  p += "\n" + RVG_SHAPE;
+  const ctl = new AbortController(); RVG.ctl = ctl;
+  try {
+    const r = await S.sample.json(p, { images: blobs.filter(Boolean), modelTier: "complex", signal: ctl.signal, cache: false });
+    if (!r || !Array.isArray(r.slides) || r.slides.length < 2) throw { code: "bad_shape" };
+    r.assetMap = sent.slice(0, nA).map((x) => ({ assetId: x.m.assetId, name: x.m.name, note: x.m.note || "" }));
+    return r;
+  } catch (e) {
+    const c = e && e.code;
+    toast(c === "cancelled" ? "Stopped." : c === "not_granted" ? "Claude access was declined for this page. Reload to be asked again."
+      : c === "rate_limited" ? "Too many requests right now. Try again in a minute." : c === "images_unavailable" || c === "image_rejected" ? "Claude couldn't take the images. Remove a big one and try again."
+      : c === "prompt_too_large" ? "The script is too long. Shorten it and try again." : "Couldn't make the carousel this time. Try again.");
+    return null;
+  } finally { RVG.ctl = null; }
+}
+// Write a plan as storyboard round `rev` of project `id`.
+async function rvgWrite(id, plan, rev, title) {
+  const n = plan.slides.length, kw = (plan.keyword || "").trim();
+  const byNum = (k) => plan.assetMap[k - 1];
+  for (let i = 0; i < n; i++) {
+    const sl = plan.slides[i], uses = (sl.assets || []).map(byNum).filter(Boolean);
+    const warn = rvgChecks(sl, i, n, kw);
+    if (i > 0 && i < n - 1 && sl.ground === plan.slides[i - 1].ground) warn.push("Same ground as the previous slide");
+    await S.db.doc(`review_projects/${id}/frames/r${rev}-${rvPad(i)}`).set({ rev, i, kind: "slide", n: i + 1,
+      title: `${String(sl.role || "slide").toUpperCase()} · ${sl.ground === "cream" ? "cream" : "petrol"}`,
+      mock: { ground: sl.ground === "cream" ? "cream" : "petrol", kicker: sl.kicker || "", headline: sl.headline || "", sub: sl.sub || "", label: sl.label || "", body: sl.body || "" },
+      visual: sl.visual || "", why: sl.why || "", uses, warn });
+  }
+  const unused = (plan.unused || []).map((u) => { const a = byNum(u.asset); return a ? `${a.name}: ${u.reason}` : u.reason; }).filter(Boolean);
+  const loop = plan.loop ? [...(plan.loop.moves || []), ...(plan.loop.gust ? [`Paper scrap: ${plan.loop.gust}`] : [])] : [];
+  const now = new Date().toISOString();
+  await S.db.doc("review_projects/" + id).update({ rev, frameCount: n, title, loop, plan,
+    meta: [["Slides", String(n)], ["CTA keyword", kw || "—"], ...(plan.notes ? [["Claude's note", plan.notes]] : []), ...(unused.length ? [["Images not used", unused.join(" · ")]] : [])], updatedAt: now });
+  await S.db.doc("review_status/" + id).set({ status: "review", rev, at: now });
+}
+async function rvgGenerate() {
+  const d = RV.draft; if (!d || RVG.busy) return;
+  if (!d.script.trim() || !d.title.trim()) { toast("Add a name and the script first."); return; }
+  rvbSave(true); rvgBusy(true, "Writing your carousel…");
+  try {
+    const plan = await rvgRun(d.id, d, d.assets, d.refs, null, "");
+    if (plan) { await rvgWrite(d.id, plan, 1, d.title.trim()); toast("Storyboard ready. Review it slide by slide."); }
+  } catch (e) { dbErr(e); }
+  finally { rvgBusy(false); rvbPaintBar(); }
+}
+async function rvgRedo() {
+  const id = RV.open, p = RV.projects[id]; if (!p || !p.plan || RVG.busy) return;
+  const notes = [];
+  const all = RV.notes[rvKey(-1)]; if (all && (all.text || "").trim()) notes.push(`Overall: ${all.text.trim()}`);
+  RV.frames.forEach((f) => { const n = RV.notes[rvKey(f.i)]; if (!rvActive(n) && !(n && n.verdict === "keep")) return;
+    notes.push(`Slide ${f.i + 1}: ${n.verdict ? `[${n.verdict}] ` : ""}${(n.text || "").trim()}`); });
+  if (!notes.length) { toast("Leave a note or a verdict first."); return; }
+  rvgBusy(true, "Applying your notes…");
+  try {
+    const prev = Object.assign({}, p.plan); delete prev.assetMap;
+    const plan = await rvgRun(id, p.brief || {}, p.assets || [], p.refs || [], prev, notes.join("\n"));
+    if (plan) { await rvgWrite(id, plan, (p.rev || 1) + 1, p.title || id); toast(`Round ${(p.rev || 1) + 1} is ready.`); }
+  } catch (e) { dbErr(e); }
+  finally { rvgBusy(false); rvPaintBar(); }
+}
+
+function bindReview() {
+  const root = $("#rvRoot");
+  root.addEventListener("click", async (e) => {
+    const f = e.target.closest("[data-rv-filter]"); if (f) { RV.filter = f.dataset.rvFilter; try { localStorage.setItem("ce.rvFilter", RV.filter); } catch (err) { /* ignore */ } renderRvList(); return; }
+    const o = e.target.closest("[data-rv-open]"); if (o) { rvOpen(o.dataset.rvOpen); return; }
+    if (e.target.closest("#rvBack")) { rvOpen(null); return; }
+    const v = e.target.closest("[data-rv-v]");
+    if (v) { const i = +v.dataset.rvI, cur = (RV.notes[rvKey(i)] || {}).verdict === v.dataset.rvV ? "" : v.dataset.rvV; rvSave(i, { verdict: cur }); if (cur === "change") { const ta = $("#rv-note-" + CSS.escape(rvKey(i))); if (ta) ta.focus(); } return; }
+    if (e.target.closest("#rvSend")) { rvSetStatus("changes"); return; }
+    if (e.target.closest("#rvApprove")) { rvSetStatus(rvSt(RV.open) === "changes" ? "review" : "approved"); return; }
+    const cp = e.target.closest("#rvCopy");
+    if (cp) { try { await navigator.clipboard.writeText(cp.dataset.say); cp.textContent = "Copied"; } catch (err) { const r = document.createRange(); r.selectNodeContents($("#rvSay")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Press Cmd+C to copy"); } }
+  });
+  root.addEventListener("input", (e) => { const t = e.target; if (t.dataset && t.dataset.rvNote != null) rvSave(+t.dataset.rvNote, { text: t.value }); });
+}
+
 /* ---------- shell ---------- */
 const mqMobile = window.matchMedia("(max-width:900px)");
 function setDrawer(open) { const sh = $("#shell"); sh.classList.toggle("open", open); $("#scrim").hidden = !open; }
@@ -3402,12 +3918,12 @@ function renderUserChip() {
 }
 
 /* ---------- views ---------- */
-const CRUMBS = { inspo: ["Discover", "Inspiration Library"], studio: ["Create", "Carousel"], video: ["Create", "Video"], media: ["Create", "Media Bank"], carousels: ["Publish", "My Carousels"], calendar: ["Publish", "Calendar"], analytics: ["Publish", "Analytics"], auto: ["Automate", "Comment automations"] };
+const CRUMBS = { review: ["Review", "Storyboards"], inspo: ["Discover", "Inspiration Library"], studio: ["Create", "Carousel"], video: ["Create", "Video"], media: ["Create", "Media Bank"], carousels: ["Publish", "My Carousels"], calendar: ["Publish", "Calendar"], analytics: ["Publish", "Analytics"], auto: ["Automate", "Comment automations"] };
 function go(view) {
   S.view = view;
   const cr = CRUMBS[view] || ["", view]; $("#crumbRoot").textContent = cr[0]; $("#crumbCur").textContent = cr[1];
   setDrawer(false);
-  ["inspo", "studio", "media", "video", "carousels", "auto", "calendar", "analytics"].forEach((v) => { $("#view-" + v).hidden = v !== view; $("#tab-" + v).classList.toggle("on", v === view); });
+  ["review", "inspo", "studio", "media", "video", "carousels", "auto", "calendar", "analytics"].forEach((v) => { $("#view-" + v).hidden = v !== view; $("#tab-" + v).classList.toggle("on", v === view); });
   $("#exportBtn").hidden = view !== "studio";
   $("#postBtn").hidden = view !== "studio";
   $("#saveBtn").hidden = view !== "studio";
@@ -3418,6 +3934,7 @@ function go(view) {
   if (view === "video") enterVideo();
   if (view === "auto") { if (isReplyPlat(AUP.plat)) enterTT(); else enterAuto(); }
   if (view === "studio") renderStudio();
+  if (view === "review") renderReview();
 }
 
 /* ---------- live data ---------- */
@@ -3464,6 +3981,8 @@ function subscribe() {
     S.loaded.posts = true; afterData();
     const pv = $("#pvBody").dataset.id; if (!$("#postView").hidden && pv) { if (S.posts.some((p) => p.id === pv)) openPostView(pv); else $("#postView").hidden = true; }
   }, onErr);
+  S.db.collection("review_projects").onSnapshot((snap) => { RV.projects = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()])); RV.loaded = true; rvAfter(false); }, onErr);
+  S.db.collection("review_status").onSnapshot((snap) => { RV.status = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()])); rvAfter(true); }, onErr);
   S.db.doc("settings/autoreplies").onSnapshot((snap) => { AU.defaults = snap.exists ? snap.data() : null; }, onErr);
   S.db.doc("settings/ttreplies").onSnapshot((snap) => { TT.defaults.tiktok = snap.exists ? snap.data() : null; }, onErr);
   S.db.doc("settings/ytreplies").onSnapshot((snap) => { TT.defaults.youtube = snap.exists ? snap.data() : null; }, onErr);
@@ -3478,6 +3997,8 @@ function subscribe() {
 
 /* ---------- events ---------- */
 function bind() {
+  bindReview();
+  bindBrief();
   document.querySelectorAll(".tab").forEach((b) => b.addEventListener("click", () => go(b.dataset.view)));
   try { if (localStorage.getItem("ce.sidebar") === "collapsed") $("#shell").classList.add("collapsed"); } catch (e) {}
   $("#sbToggle").addEventListener("click", toggleSidebar);
@@ -3919,6 +4440,8 @@ async function boot() {
   const db = await c.use("db").catch(() => null);
   if (!db) { noDb(); return; }
   S.db = db; subscribe();
+  // Deep link: #review opens Storyboards, #review-<id> opens one project.
+  if (/^#review/.test(location.hash)) { const id = location.hash.slice("#review-".length); if (id) RV.pending = id; go("review"); }
 }
 function noDb() {
   S.noDb = true;

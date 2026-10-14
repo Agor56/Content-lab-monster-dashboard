@@ -110,7 +110,7 @@ If a setup row says `waiting-for-ZERNIO_API_KEY`, the secret from 3d is missing.
   "db": {},
   "assets": {},
   "downloads": {},
-  "sample": {},
+  "sample": { "images": true },
   "mcp": {
     "servers": [
       { "server": "Zernio MCP", "tools": ["accounts_list", "media_generate_upload_link", "media_check_upload_status", "call_tool"] },
@@ -120,7 +120,7 @@ If a setup row says `waiting-for-ZERNIO_API_KEY`, the secret from 3d is missing.
 }
 ```
 
-The first time it opens, Claude asks to allow Zernio and Supabase for the page.
+The first time it opens, Claude asks to allow Zernio and Supabase for the page. The first Generate carousel asks once to let the page send images to Claude.
 
 **Check:** Accounts (sidebar, bottom) shows Instagram, TikTok and YouTube as connected; Comment automations → TikTok and → YouTube load without errors.
 
@@ -147,5 +147,7 @@ Saved in the artifact's own storage on claude.ai, tied to that artifact. A new a
 | db docs `settings/main`, `settings/autoreplies`, `settings/ttreplies`, `settings/ytreplies` | handle and default replies (Instagram, TikTok, YouTube) |
 | db doc `settings/ttcache` | last loaded TikTok/YouTube rule list, for instant display |
 | db doc `settings/ancache` | last loaded Analytics numbers (30 days, all platforms), for instant display |
+| db collection `review_projects` (+ `frames`, `notes` under each) + asset store | Storyboards: briefs (script, images to use, references; images in the asset store), each round's frames, the approved plan, and Anton's notes and verdicts per frame |
+| db collection `review_status` | each storyboard's status: draft, brief, review, changes, approved, rendered |
 
 The TikTok and YouTube rules themselves are in Supabase (`tiktok_automations`), so they survive a new artifact. The Instagram automations are in Zernio.
