@@ -10,6 +10,8 @@ Anton's content dashboard: build carousels, post to Instagram, TikTok and YouTub
 | Runs on | Zernio's comment automations | Supabase `tiktok-autoreply` | Supabase `tiktok-autoreply` |
 | Extra | Second DM via Supabase `ig-followup` | | |
 
+**Storyboards** (sidebar → Review): every reel and carousel is approved as a storyboard before anything is rendered. For a carousel, write a brief (script, hook, CTA keyword, images to use, reference images) and press **Generate carousel**: Claude plans the slides in Anton's design system from inside the page (about a minute). Mark each slide Keep / Change / Cut with notes and press **Redo with my notes** for the next round. After **Approve**, the final slides are rendered in Claude Code with the carousel-antongor skill, because that design kit runs locally. Reel storyboards are pushed in from Claude Code.
+
 Rebuilding it from scratch (Zernio, Claude connectors, Supabase, page capabilities, where your content is stored): see [SETUP.md](SETUP.md). Coding agents: start with [AGENTS.md](AGENTS.md).
 
 ## TikTok + YouTube comment auto-reply
