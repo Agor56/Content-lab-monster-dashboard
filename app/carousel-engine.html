@@ -206,6 +206,8 @@ details[open]>summary::before{content:"▾"}
 .sizectl input[type=range]{flex:1;min-width:80px}
 .sizectl b{font-weight:600;font-size:12px;color:var(--ink);min-width:40px;text-align:right}
 .textbar .seg{flex:0 0 auto}
+.styleseg{flex-wrap:wrap}
+.styleseg button{flex:1 1 30%}
 .inline-ed{position:absolute;z-index:2;margin:0;resize:none;overflow:hidden;border:2px dashed var(--hl);border-radius:6px;background:rgba(0,0,0,.78);color:#fff;text-align:center;outline:none;padding-block:0;caret-color:var(--hl);white-space:pre-wrap}
 #stage{display:block;width:100%;height:100%;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.08),0 10px 30px rgba(0,0,0,.16);touch-action:none;background:#1A1E29}
 .stage-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:#C9CEDB;font-size:14px;border-radius:6px;pointer-events:none}
@@ -633,10 +635,13 @@ table.antable{width:100%;border-collapse:collapse;font-size:13px}
     </div>
     <div class="group">
       <span class="lbl"><span class="step">3</span>Pick a text style</span>
-      <div class="seg" id="styleSeg" role="group" aria-label="Text style">
-        <button data-style="box" id="styleBox">Black boxes</button>
-        <button data-style="whitebox" id="styleWhiteBox">White boxes</button>
-        <button data-style="clean" id="styleClean">White + shadow</button>
+      <div class="seg styleseg" id="styleSeg" role="group" aria-label="Text style">
+        <button data-style="box">Black boxes</button>
+        <button data-style="whitebox">White boxes</button>
+        <button data-style="clean">White + shadow</button>
+        <button data-style="signal" title="Petrol box, cream text">Signal</button>
+        <button data-style="cream" title="Cream box, petrol text">Cream boxes</button>
+        <button data-style="yellow" title="Yellow box, petrol text">Yellow boxes</button>
       </div>
     </div>
     <div class="group">
@@ -890,6 +895,11 @@ const FONTS = {
   assistant: { css: '"Assistant", "Rubik", sans-serif', fam: '"Assistant"', w: 800 },
   secular:   { css: '"Secular One", "Rubik", sans-serif', fam: '"Secular One"', w: 400 },
 };
+// Text-box styles: box fill and text colour. Signal, Cream and Yellow use Anton's design-system colours.
+const BOX = {
+  box: ["#000", "#fff"], whitebox: ["#fff", "#000"],
+  signal: ["#04252A", "#F3E1C6"], cream: ["#F3E1C6", "#04252A"], yellow: ["#F4BD16", "#04252A"],
+};
 const PH = [["#1A1E29","#2F3A5E"],["#1D1B25","#3C3050"],["#15202A","#24495C"],["#1F1C1A","#4A3B2C"]];
 
 const $ = (s) => document.querySelector(s);
@@ -979,7 +989,7 @@ function pickImages(setId, n) {
 function normalize(c) {
   c.title = c.title || "Untitled carousel";
   c.font = FONTS[c.font] ? c.font : "rubik";
-  c.textStyle = ["box", "whitebox", "clean"].includes(c.textStyle) ? c.textStyle : "box";
+  c.textStyle = BOX[c.textStyle] || c.textStyle === "clean" ? c.textStyle : "box";
   c.dim = typeof c.dim === "number" ? c.dim : 0.2;
   c.showHandle = c.showHandle !== false; c.showCount = c.showCount !== false;
   c.applyAll = !!c.applyAll;
@@ -1067,8 +1077,9 @@ async function ensureFonts(car) {
 function rr(ctx, x, y, w, h, r) {
   ctx.beginPath();
   if (ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
-  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  const [tl, tr, br, bl] = Array.isArray(r) ? r : [r, r, r, r];
+  ctx.moveTo(x + tl, y); ctx.arcTo(x + w, y, x + w, y + h, tr); ctx.arcTo(x + w, y + h, x, y + h, br);
+  ctx.arcTo(x, y + h, x, y, bl); ctx.arcTo(x, y, x + w, y, tl); ctx.closePath();
 }
 function cover(ctx, im) {
   const k = Math.max(W / im.naturalWidth, H / im.naturalHeight);
@@ -1103,7 +1114,7 @@ function wrap(ctx, text, maxW) {
 }
 function layout(ctx, car, s, i) {
   const f = FONTS[car.font] || FONTS.rubik;
-  const box = car.textStyle === "box" || car.textStyle === "whitebox";
+  const box = !!BOX[car.textStyle];
   let size = effSize(s, i), lines, widths, lh, blockH;
   const maxW = W * 0.8;
   for (;;) {
@@ -1134,11 +1145,17 @@ function paintText(ctx, car, L) {
   L.lines.forEach((ln, k) => {
     if (!ln) return;
     const yMid = L.top + k * L.lh + L.lh / 2;
-    if (car.textStyle === "box" || car.textStyle === "whitebox") {
-      const inv = car.textStyle === "whitebox";
-      const bh = L.size * 1.24, bw = L.widths[k] + L.padX * 2;
-      ctx.fillStyle = inv ? "#fff" : "#000"; rr(ctx, L.cx - bw / 2, yMid - bh / 2, bw, bh, L.size * 0.16); ctx.fill();
-      ctx.fillStyle = inv ? "#000" : "#fff"; ctx.fillText(ln, L.cx, yMid + L.size * 0.04);
+    const bx = BOX[car.textStyle];
+    if (bx) {
+      // Boxes of lines stacked with no blank line between them join into one shape;
+      // a corner stays rounded only where it is exposed (no neighbour, or a narrower one).
+      const bh = L.size * 1.24, bw = L.widths[k] + L.padX * 2, r = L.size * 0.16;
+      const up = k > 0 && L.lines[k - 1] ? L.widths[k - 1] + L.padX * 2 : 0;
+      const dn = L.lines[k + 1] ? L.widths[k + 1] + L.padX * 2 : 0;
+      const y0 = up ? yMid - L.lh / 2 : yMid - bh / 2, y1 = dn ? yMid + L.lh / 2 : yMid + bh / 2;
+      const rt = up < bw - 1 ? r : 0, rb = dn < bw - 1 ? r : 0;
+      ctx.fillStyle = bx[0]; rr(ctx, L.cx - bw / 2, y0, bw, y1 - y0, [rt, rt, rb, rb]); ctx.fill();
+      ctx.fillStyle = bx[1]; ctx.fillText(ln, L.cx, yMid + L.size * 0.04);
     } else {
       ctx.save();
       ctx.shadowColor = "rgba(0,0,0,.65)"; ctx.shadowBlur = L.size * 0.4; ctx.shadowOffsetY = L.size * 0.05;
@@ -1253,9 +1270,7 @@ function renderLeft() {
   if (document.activeElement !== $("#titleIn")) $("#titleIn").value = c.title;
   if (document.activeElement !== $("#copyIn")) $("#copyIn").value = c.copy;
   if (document.activeElement !== $("#captionIn")) $("#captionIn").value = c.caption;
-  $("#styleBox").classList.toggle("on", c.textStyle === "box");
-  $("#styleWhiteBox").classList.toggle("on", c.textStyle === "whitebox");
-  $("#styleClean").classList.toggle("on", c.textStyle === "clean");
+  $("#styleSeg").querySelectorAll("[data-style]").forEach((b) => b.classList.toggle("on", c.textStyle === b.dataset.style));
   $("#fontSel").value = c.font;
   $("#dimIn").value = c.dim; $("#dimVal").textContent = Math.round(c.dim * 100) + "%";
   $("#handleChk").checked = c.showHandle; $("#countChk").checked = c.showCount;
@@ -3774,7 +3789,7 @@ COPY RULES
 - The last slide is one clear action: comment the keyword (exactly as given) on the big yellow label, with a hand-drawn arrow. No "follow for more".
 - 7 to 9 slides unless a number is given.
 
-DESIGN SYSTEM (Anton Gor's): 1080x1350, right-to-left. Grounds alternate petrol (#04252A) and cream (#F3E1C6); the cover and the last slide are petrol. Yellow (#F4BD16) is the single focal accent per slide: one torn yellow label or one hand-drawn mark. Everything looks hand-made and printed: torn paper notes with tape, a torn yellow label for the phrase to remember, worn printed road signs (diamond warning sign, arrow sign, street-name plate, round no-entry sign) for direction / dead ends / choices, "שלום, אני" name-tag stickers for roles or personas, a halftone burst behind a big number or overload, hand-drawn yellow marks (arrow, underline, strike-through, circle), Anton's real screenshots printed on paper and taped, Anton's photo cut out as a die-cut paper sticker. Never: emoji, glow, gradients, robots or brains, fake app UI, stock-photo strangers.
+DESIGN SYSTEM (Anton Gor's): 1080x1350, right-to-left. Grounds alternate petrol (#04252A) and cream (#F3E1C6); the cover and the last slide are petrol. Yellow (#F4BD16) is the single focal accent per slide: one torn yellow label or one hand-drawn mark. Everything looks hand-made and printed: torn paper notes with tape, a torn yellow label for the phrase to remember, worn printed road signs (diamond warning sign, arrow sign, street-name plate, round no-entry sign) for direction / dead ends / choices, "שלום, אני" name-tag stickers for roles or personas, a halftone burst behind a big number or overload, hand-drawn yellow marks (arrow, underline, strike-through, circle), Anton's real screenshots printed on paper and taped, Anton's photo cut out as a die-cut paper sticker. In a tool roundup the tools' real logos are welcome as die-cut paper stickers (rounded, cream border, lifted shadow) on the cover and on each tool's slide. Never: emoji, glow, gradients, robots or brains, fake app UI, stock-photo strangers.
 COVER: an editorial collage, never an ad. A dense wall of objects that carry the idea, overlapping and bleeding off the edges; the hook is written on a torn paper note taped on top; the punch is on a yellow label slapped onto the note's edge; if a photo of Anton is given, he goes on as a paper sticker, second in importance; other objects are dimmed. A small hand-drawn "החליקו" swipe tab with a yellow arrow sits bottom-right.
 COVER LOOP (1.5 s, for a Live Photo): the background objects swing on their pins in a breeze, the hook note's loose bottom edge lifts, a torn paper scrap blows across behind the note, the swipe arrow nudges right. Say which objects sway and where the scrap flies.
 
