@@ -11,7 +11,7 @@ Anton's content dashboard. One HTML app (published as a claude.ai artifact) plus
 
 | Path | What | Runs where |
 |---|---|---|
-| `app/carousel-engine.html` | the whole dashboard: carousel studio, Media Bank, video composer, calendar, analytics, comment automations | claude.ai artifact `https://claude.ai/artifact/LNtLJQX7FFe4PWaANW3iZS` |
+| `app/carousel-engine.html` | the whole dashboard: Storyboards (briefs, in-page Generate carousel, per-frame review), carousel studio, Media Bank, video composer, calendar, analytics, comment automations | claude.ai artifact `https://claude.ai/artifact/LNtLJQX7FFe4PWaANW3iZS` |
 | `supabase/functions/tiktok-autoreply/index.ts` | public replies to TikTok and YouTube comments | Supabase Edge Function, project `kbudvqcnmejuoxyncvtq` |
 | `supabase/functions/ig-followup/index.ts` | optional second Instagram DM | Supabase Edge Function, same project |
 | `supabase/sql/schema.sql` | tables, lock-down, secrets, cron for `tiktok-autoreply` | same project |
