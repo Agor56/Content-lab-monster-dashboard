@@ -209,6 +209,7 @@ details[open]>summary::before{content:"▾"}
 .styleseg{flex-wrap:wrap}
 .styleseg button{flex:1 1 30%}
 .inline-ed{position:absolute;z-index:2;margin:0;resize:none;overflow:hidden;border:2px dashed var(--hl);border-radius:6px;background:rgba(0,0,0,.78);color:#fff;text-align:center;outline:none;padding-block:0;caret-color:var(--hl);white-space:pre-wrap}
+.canvas-box.over #stage{outline:3px dashed var(--hl);outline-offset:3px}
 #stage{display:block;width:100%;height:100%;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,.08),0 10px 30px rgba(0,0,0,.16);touch-action:none;background:#1A1E29}
 .stage-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:#C9CEDB;font-size:14px;border-radius:6px;pointer-events:none}
 .stage-nav{display:flex;align-items:center;gap:14px}
@@ -698,7 +699,7 @@ table.antable{width:100%;border-collapse:collapse;font-size:13px}
     </div>
     <div class="stage-row">
       <button class="btn icon" id="prevBtn" aria-label="Previous slide">‹</button>
-      <div class="canvas-box">
+      <div class="canvas-box" id="canvasBox">
         <canvas id="stage" width="1080" height="1350" dir="rtl" aria-label="Current slide"></canvas>
         <div id="stageEmpty" class="stage-empty" hidden>Paste your copy, pick an image style, then press Generate slides.</div>
         <textarea id="inlineEd" class="inline-ed" dir="rtl" spellcheck="false" aria-label="Edit slide text" hidden></textarea>
@@ -707,7 +708,7 @@ table.antable{width:100%;border-collapse:collapse;font-size:13px}
     </div>
     <span id="slideNum" class="mono slidenum">–</span>
     <div class="strip-wrap"><div class="strip" id="strip"></div></div>
-    <p class="hint center">Click the text on the slide to edit it. Drag it to move it. Esc or click outside when done.</p>
+    <p class="hint center">Click the text on the slide to edit it. Drag it to move it. Drop a photo on the slide to swap its image.</p>
   </section>
 
   <aside class="panel tools" aria-label="Edit this slide">
@@ -718,6 +719,9 @@ table.antable{width:100%;border-collapse:collapse;font-size:13px}
     <div class="group toollist">
       <button class="tool" id="shuffleBtn"><span class="ic" aria-hidden="true">⇄</span>Swap image</button>
       <button class="tool" id="chooseBtn"><span class="ic" aria-hidden="true">▦</span>Choose image</button>
+      <button class="tool" id="uploadPhotoBtn"><span class="ic" aria-hidden="true">↑</span>Upload photo</button>
+      <button class="tool" id="addPhotoBtn"><span class="ic" aria-hidden="true">⊕</span>Add slide from photo</button>
+      <input id="slideFileIn" type="file" accept="image/jpeg,image/png,image/webp" hidden>
       <button class="tool" id="addBtn"><span class="ic" aria-hidden="true">+</span>Add slide after</button>
       <button class="tool" id="dupBtn"><span class="ic" aria-hidden="true">⧉</span>Duplicate slide</button>
       <button class="tool" id="leftBtn"><span class="ic" aria-hidden="true">←</span>Move earlier</button>
@@ -1294,8 +1298,8 @@ function renderSetChips() {
 }
 function renderInspector() {
   const s = cur(), dis = !s;
-  ["#slideText","#sizeIn","#autoSizeBtn","#shuffleBtn","#chooseBtn","#dupBtn","#leftBtn","#rightBtn","#delBtn","#exportOneBtn"].forEach((q) => { $(q).disabled = dis; });
-  $("#addBtn").disabled = !S.cur || S.cur.slides.length >= MAX_SLIDES;
+  ["#slideText","#sizeIn","#autoSizeBtn","#shuffleBtn","#chooseBtn","#dupBtn","#leftBtn","#rightBtn","#delBtn","#exportOneBtn","#uploadPhotoBtn"].forEach((q) => { $(q).disabled = dis; });
+  $("#addBtn").disabled = $("#addPhotoBtn").disabled = !S.cur || S.cur.slides.length >= MAX_SLIDES;
   $("#posSeg").querySelectorAll("button").forEach((b) => { b.disabled = dis; });
   $("#applyAllChk").disabled = dis; $("#applyAllChk").checked = !!(S.cur && S.cur.applyAll);
   if (!s) { $("#slideText").value = ""; $("#inspTitle").textContent = "Slide text"; $("#sizeVal").textContent = ""; return; }
@@ -1620,6 +1624,52 @@ async function uploadFiles(files) {
     uploading = false; meta.textContent = orig;
     toast(failed.length ? `Added ${ok}. Couldn't add: ${failed.slice(0, 3).join(", ")}${failed.length > 3 ? "…" : ""}` : `Added ${ok} image${ok === 1 ? "" : "s"}`);
     refreshStorage();
+  }
+}
+// Photos uploaded straight onto a slide go to an "Uploads" set, so they also show in Media Bank.
+// Any size or shape works: slides draw every image cropped to fill the 1080x1350 frame (cover()).
+async function uploadsSetId() {
+  const st = S.sets.find((x) => x.uploads) || S.sets.find((x) => x.name === "Uploads");
+  if (st) return st.id;
+  const id = uid(), order = Math.max(0, ...S.sets.map((x) => x.order || 0)) + 1;
+  if (!(await dbSet("sets/" + id, { name: "Uploads", uploads: true, order, createdAt: Date.now() }))) return null;
+  if (!setById(id)) S.sets.push({ id, name: "Uploads", uploads: true, order });
+  return id;
+}
+let slideUpMode = "replace", slideUploading = false;
+async function uploadSlidePhotos(files, mode) {
+  files = [...files].filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type));
+  if (!files.length) { toast("Use a JPG, PNG or WebP photo."); return; }
+  const c = S.cur; if (!c) return;
+  if (!S.assets || !S.db) { toast("Uploads aren't available in this view. Open the page in Claude."); return; }
+  if (slideUploading) { toast("Wait for the current upload to finish."); return; }
+  if (mode === "replace" && !cur()) mode = "add";
+  if (mode === "replace") files = files.slice(0, 1);
+  else files = files.slice(0, MAX_SLIDES - c.slides.length);
+  if (!files.length) { toast("Instagram allows up to 20 slides."); return; }
+  slideUploading = true; let done = 0;
+  try {
+    const setId = await uploadsSetId(); if (!setId) return;
+    for (let k = 0; k < files.length; k++) {
+      toast(files.length > 1 ? `Uploading ${k + 1} of ${files.length}…` : "Uploading photo…");
+      const f = files[k], p = await prepImage(f);
+      const res = await S.assets.upload(p.blob, { type: p.type });
+      const id = uid(), m = { assetId: res.id, setId, name: f.name, w: p.w, h: p.h, createdAt: Date.now(), uses: 0 };
+      await S.db.doc("media/" + id).set(m);
+      mediaById.set(id, { id, ...m });
+      if (mode === "replace") cur().mediaId = id;
+      else {
+        const src = cur(), ns = { id: uid(), text: "", mediaId: id, x: 0.5, y: 0.5, size: null };
+        if (c.applyAll && src) { ns.x = src.x; ns.y = src.y; ns.size = src.size; }
+        const at = c.slides.length ? S.idx + 1 : 0; c.slides.splice(at, 0, ns); S.idx = at;
+      }
+      done++;
+    }
+  } catch (e) {
+    toast(e && e.code === "quota_or_state" ? "Image storage is full. Delete some images in Media Bank first." : (e && e.message) || "Couldn't upload that photo.");
+  } finally {
+    slideUploading = false;
+    if (done) { markDirty(); renderStudio(); toast(mode === "replace" ? "Photo replaced" : `Added ${done} slide${done === 1 ? "" : "s"}`); }
   }
 }
 async function createSet(name) {
@@ -4066,6 +4116,14 @@ function bind() {
   });
   $("#shuffleBtn").addEventListener("click", shuffleImage);
   $("#chooseBtn").addEventListener("click", openPicker);
+  $("#uploadPhotoBtn").addEventListener("click", () => { slideUpMode = "replace"; const f = $("#slideFileIn"); f.multiple = false; f.click(); });
+  $("#addPhotoBtn").addEventListener("click", () => { slideUpMode = "add"; const f = $("#slideFileIn"); f.multiple = true; f.click(); });
+  $("#slideFileIn").addEventListener("change", (e) => { uploadSlidePhotos(e.target.files, slideUpMode); e.target.value = ""; });
+  // Drop photos on the slide: one replaces this slide's photo, several add new slides.
+  const cbox = $("#canvasBox");
+  ["dragenter", "dragover"].forEach((ev) => cbox.addEventListener(ev, (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { e.preventDefault(); cbox.classList.add("over"); } }));
+  ["dragleave", "drop"].forEach((ev) => cbox.addEventListener(ev, () => cbox.classList.remove("over")));
+  cbox.addEventListener("drop", (e) => { const fs = e.dataTransfer && e.dataTransfer.files; if (!fs || !fs.length) return; e.preventDefault(); uploadSlidePhotos(fs, fs.length === 1 && cur() ? "replace" : "add"); });
   $("#addBtn").addEventListener("click", () => addSlide(false));
   $("#dupBtn").addEventListener("click", () => addSlide(true));
   $("#leftBtn").addEventListener("click", () => moveSlide(-1));
